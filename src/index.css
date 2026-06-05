@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@300;400;500;600;700;850&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Cinzel", "Outfit", serif;
+  --font-mono: ui-monospace, monospace;
+}
+
+@layer base {
+  body {
+    background-color: #fcfcfd;
+    color: #1e293b;
+    font-family: var(--font-sans);
+  }
+}
+
+/* Elegant gold gradient accent line and backdrop */
+.gold-accent-gradient {
+  background: linear-gradient(135deg, #b48d2d 0%, #d4af37 50%, #9a782e 100%);
+}
+
+.navy-deep-gradient {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}

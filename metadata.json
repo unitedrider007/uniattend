@@ -1,0 +1,6 @@
+{
+  "name": "University Attendance Management System",
+  "description": "Premium, production-grade Attendance and Analytics Portal engineered for the National Forensic Sciences University (NFSU), Delhi Campus.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
