@@ -1,6 +1,6 @@
-import dotenv from "dotenv";
-dotenv.config();
-console.log("DATABASE_URL =", process.env.DATABASE_URL);
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
 
 import pg from "pg";
 const { Pool } = pg;
@@ -8,11 +8,12 @@ const { Pool } = pg;
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString && process.env.NODE_ENV === "production") {
-  console.warn("⚠️ [PostgreSQL] WARNING: DATABASE_URL environment variable is missing.");
+  console.error("❌ CRITICAL: DATABASE_URL environment variable is not set for production environment. Deployment will fail.");
+  process.exit(1);
 }
 
 export const pool = new Pool({
-  connectionString: connectionString || "postgresql://postgres:sql@localhost:5432/uams_db",
+  connectionString: connectionString,
   ssl: process.env.NODE_ENV === "production"
     ? { rejectUnauthorized: false }
     : undefined

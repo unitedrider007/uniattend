@@ -79,12 +79,11 @@ async function autoMigrateAndSeed() {
   }
 }
 
-async function startServer() {
+const app = express();
+
+// This promise resolves when the async setup (like DB migration) is complete.
+const ready = (async () => {
   await autoMigrateAndSeed();
-
-  const app = express();
-  const PORT = 3000;
-
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
@@ -96,7 +95,7 @@ async function startServer() {
     return `uams_refresh.${Buffer.from(JSON.stringify({ userId: user.id })).toString("base64")}`;
   };
 
-  // Auth endpoint
+  // --- API ENDPOINTS ---
   app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -964,26 +963,35 @@ async function startServer() {
     res.json({ status: "healthy", timestamp: new Date().toISOString() });
   });
 
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
+  // In production, Vercel handles static file serving.
+  // We add a fallback for client-side routing (SPA behavior).
+  if (process.env.NODE_ENV === "production") {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
+})();
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[UAMS Node Server] Running on http://localhost:${PORT}`);
-    console.log(`[UAMS Mode] ${process.env.NODE_ENV || "development"}`);
-  });
+// This block is for local development only. It will not run on Vercel.
+if (process.env.NODE_ENV !== "production") {
+  (async () => {
+    await ready; // Wait for base app setup
+    const PORT = process.env.PORT || 3000;
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`[UAMS Dev Server] Running on http://localhost:${PORT}`);
+    });
+  })();
 }
 
-startServer().catch((err) => {
-  console.error("Failed to start UAMS portal server", err);
-});
+// This is the main handler Vercel will use.
+export default async (req, any, res) => {
+  await ready; // Ensure async setup is complete before handling requests
+  app(req, res);
+};
