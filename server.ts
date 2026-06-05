@@ -51,29 +51,6 @@ async function autoMigrateAndSeed() {
         return;
       }
     }
-
-    const checkUsers = await pool.query("SELECT COUNT(*) FROM users");
-    const userCount = Number(checkUsers.rows[0].count);
-
-    if (userCount === 0) {
-          console.log("🌱 [PostgreSQL] Provisioning primary administrator account...");
-          const client = await pool.connect();
-          try {
-            await client.query("BEGIN");
-            await client.query(`
-              INSERT INTO users (id, email, password_hash, role, target_id) VALUES
-              ('u-admin', 'director.delhi@nfsu.gov.in', 'admin123', 'ADMIN', NULL)
-              ON CONFLICT DO NOTHING
-            `);
-        await client.query("COMMIT");
-            console.log("✅ [PostgreSQL] Admin account provisioned (director.delhi@nfsu.gov.in / admin123).");
-      } catch (err) {
-        await client.query("ROLLBACK");
-            console.error("❌ [PostgreSQL] Admin provisioning failed:", err);
-      } finally {
-        client.release();
-      }
-    }
   } catch (err) {
     console.error("❌ [PostgreSQL] Auto-migration error:", err);
   }
@@ -991,7 +968,7 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 // This is the main handler Vercel will use.
-export default async (req, any, res) => {
+export default async (req, res) => {
   await ready; // Ensure async setup is complete before handling requests
   app(req, res);
 };
