@@ -935,12 +935,37 @@ const ready = (async () => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
-})();
+
+// Auto migrations & seed db helper (LOCAL ONLY)
+async function autoMigrateAndSeed() {
+  console.log("⚙️ [PostgreSQL] Initializing auto-migration system...");
+  try {
+    const checkTable = await pool.query(
+      "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users')"
+    );
+    const tableExists = checkTable.rows[0].exists;
+
+    if (!tableExists) {
+      console.log("🐘 [PostgreSQL] Database is uninitialized. Running schema.sql...");
+      const schemaPath = path.join(process.cwd(), "schema.sql");
+      if (fs.existsSync(schemaPath)) {
+        const schemaSql = fs.readFileSync(schemaPath, "utf8");
+        await pool.query(schemaSql);
+        console.log("✅ [PostgreSQL] Schema initialized successfully.");
+      } else {
+        console.error("❌ [PostgreSQL] schema.sql file not found at project root!");
+        return;
+      }
+    }
+  } catch (err) {
+    console.error("❌ [PostgreSQL] Auto-migration error:", err);
+  }
+}
 
 // This block is for local development only. It will not run on Vercel.
 if (process.env.NODE_ENV !== "production") {
   (async () => {
-    await ready; // Wait for base app setup
+    await autoMigrateAndSeed();
     const PORT = process.env.PORT || 3000;
     const viteMod = "vite";
     const { createServer: createViteServer } = await import(viteMod);
@@ -955,8 +980,5 @@ if (process.env.NODE_ENV !== "production") {
   })();
 }
 
-// This is the main handler Vercel will use.
-export default async (req, res) => {
-  await ready; // Ensure async setup is complete before handling requests
-  app(req, res);
-};
+// Vercel Serverless Export
+export default app;
