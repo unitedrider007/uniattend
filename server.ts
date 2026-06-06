@@ -942,7 +942,8 @@ if (process.env.NODE_ENV !== "production") {
   (async () => {
     await ready; // Wait for base app setup
     const PORT = process.env.PORT || 3000;
-    const { createServer: createViteServer } = await import("vite");
+    const viteMod = "vite";
+    const { createServer: createViteServer } = await import(viteMod);
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",

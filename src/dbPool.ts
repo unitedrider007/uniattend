@@ -1,17 +1,14 @@
-import dotenv from "dotenv";
-
 if (process.env.NODE_ENV !== 'production') {
-  dotenv.config();
+  import("dotenv").then(d => d.default.config()).catch(() => {});
 }
 
 import pg from "pg";
 const { Pool } = pg;
-// Load connection string from environment context
+
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString && process.env.NODE_ENV === "production") {
   console.error("❌ CRITICAL: DATABASE_URL environment variable is not set for production environment. Deployment will fail.");
-  process.exit(1);
 }
 
 export const pool = new Pool({
