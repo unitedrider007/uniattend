@@ -1,7 +1,6 @@
 
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import fs from "fs";
 import { pool } from "./src/dbPool";
 
@@ -943,6 +942,7 @@ if (process.env.NODE_ENV !== "production") {
   (async () => {
     await ready; // Wait for base app setup
     const PORT = process.env.PORT || 3000;
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
