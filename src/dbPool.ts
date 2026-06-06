@@ -9,13 +9,15 @@ const { Pool } = pg;
 
 const connectionString = process.env.DATABASE_URL;
 
-if (!connectionString && process.env.NODE_ENV === "production") {
-  console.error("❌ CRITICAL: DATABASE_URL environment variable is not set for production environment. Deployment will fail.");
-}
+const hasSupabaseUrl = connectionString && (
+  connectionString.includes("supabase.co") || 
+  connectionString.includes("supabase.com") || 
+  connectionString.includes("pooler.supabase.com")
+);
 
 export const pool = new Pool({
-  connectionString: connectionString,
-  ssl: process.env.NODE_ENV === "production"
+  connectionString: connectionString || undefined,
+  ssl: (process.env.NODE_ENV === "production" || hasSupabaseUrl)
     ? { rejectUnauthorized: false }
     : undefined,
   // Serverless optimization: avoid holding massive pools in stateless ephemeral lambdas

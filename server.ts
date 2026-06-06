@@ -2,7 +2,7 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
-import { pool } from "./src/dbPool";
+import { pool } from "./src/dbPool.js";
 
 interface User {
   id: string;
@@ -33,13 +33,30 @@ const app = express();
 
   let dbInitialized = false;
   app.use(async (req, res, next) => {
-    // Skip db initialization for pure frontend assets / files if any (though these are mostly served by Vercel static build directly)
-    if (!dbInitialized && req.path.startsWith("/api")) {
-      try {
-        await autoMigrateAndSeed();
-        dbInitialized = true;
-      } catch (err) {
-        console.error("❌ On-demand auto-migration failed:", err);
+    if (req.path === "/api/health") {
+      return res.json({
+        status: "healthy",
+        database: process.env.DATABASE_URL ? "configured" : "unconfigured",
+        environment: process.env.NODE_ENV || "development",
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (req.path.startsWith("/api")) {
+      if (!process.env.DATABASE_URL) {
+        return res.status(503).json({
+          status: "unconfigured",
+          message: "DATABASE_URL environment variable is missing on Vercel. Please configure DATABASE_URL in Vercel project Settings."
+        });
+      }
+
+      if (!dbInitialized) {
+        try {
+          await autoMigrateAndSeed();
+          dbInitialized = true;
+        } catch (err) {
+          console.error("❌ On-demand auto-migration failed:", err);
+        }
       }
     }
     next();
@@ -951,7 +968,7 @@ async function autoMigrateAndSeed() {
 }
 
 // This block is for local development only. It will not run on Vercel.
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
   (async () => {
     await autoMigrateAndSeed();
     const PORT = Number(process.env.PORT) || 3000;
