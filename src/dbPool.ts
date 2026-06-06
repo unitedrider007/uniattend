@@ -1,8 +1,10 @@
+import dotenv from "dotenv";
+import pg from "pg";
+
 if (process.env.NODE_ENV !== 'production') {
-  import("dotenv").then(d => d.default.config()).catch(() => {});
+  dotenv.config();
 }
 
-import pg from "pg";
 const { Pool } = pg;
 
 const connectionString = process.env.DATABASE_URL;

@@ -29,24 +29,8 @@ const mapAtt = (r: any) => {
 const mapAudit = (r: any) => r ? { id: r.id, recordId: r.record_id, modifiedBy: r.modified_by, modifiedDate: r.modified_date, previousStatus: r.previous_status, newStatus: r.new_status, remarks: r.remarks || "", studentName: r.student_name || "Unknown Student", enrollmentNumber: r.enrollment_number || "N/A", subjectName: r.subject_name || "N/A", date: r.attendance_date ? new Date(r.attendance_date).toISOString().split('T')[0] : "N/A" } : null;
 const mapNotif = (r: any) => r ? { id: r.id, userId: r.user_id, title: r.title, message: r.message, isRead: r.is_read, createdAt: r.created_at } : null;
 
-// Auto migrations & seed db helper
-async function autoMigrateAndSeed() {
-  console.log("⏭️ [PostgreSQL] VERCEL DEBUG: Migrations dynamically disabled for serverless environment.");
-  return;
-}
-
 const app = express();
 
-// This promise resolves when the async setup (like DB migration) is complete.
-const ready = (async () => {
-  console.log("🚀 [Boot] VERCEL DEBUG: Step 1 - Starting execution block.");
-  try {
-    await autoMigrateAndSeed();
-    console.log("🚀 [Boot] VERCEL DEBUG: Step 2 - Migrations bypassed successfully.");
-  } catch (err) {
-    console.error("❌ [Boot] VERCEL DEBUG: AUTO_MIGRATION_FATAL", err);
-    throw err;
-  }
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
