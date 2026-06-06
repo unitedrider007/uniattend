@@ -910,16 +910,6 @@ const app = express();
     res.json({ status: "healthy", timestamp: new Date().toISOString() });
   });
 
-  // In production, Vercel handles static file serving.
-  // We add a fallback for client-side routing (SPA behavior).
-  if (process.env.NODE_ENV === "production") {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  }
-
 // Auto migrations & seed db helper (LOCAL ONLY)
 async function autoMigrateAndSeed() {
   console.log("⚙️ [PostgreSQL] Initializing auto-migration system...");
@@ -964,6 +954,4 @@ if (process.env.NODE_ENV !== "production") {
   })();
 }
 
-export default function handler(req: any, res: any) {
-  return app(req, res);
-}
+export default app;
