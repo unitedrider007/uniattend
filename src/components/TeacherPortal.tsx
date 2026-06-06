@@ -839,8 +839,8 @@ export default function TeacherPortal({
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-150 text-[9px] uppercase tracking-wider text-slate-500 font-bold">
                         <th className="p-2 border-r border-slate-100 sticky left-0 bg-slate-50 z-10 shadow-[1px_0_0_0_#f1f5f9]">Student</th>
-                        {Array.from(new Set(monthlyRecords.map(r => r.date))).sort().map(d => (
-                          <th key={d} className="p-2 border-r border-slate-100 text-center">{d.slice(-2)}</th>
+                        {Array.from(new Set(monthlyRecords.map(r => r.date))).sort().map((d: any) => (
+                          <th key={d} className="p-2 border-r border-slate-100 text-center">{(d as string).slice(-2)}</th>
                         ))}
                         <th className="p-2 text-center">%</th>
                       </tr>
@@ -1418,8 +1418,8 @@ export default function TeacherPortal({
                   <tr className="bg-slate-50 border-b border-slate-150 text-[10px] uppercase tracking-wider text-slate-500 font-bold">
                     <th className="p-3 border-r border-slate-100 sticky left-0 bg-slate-50 z-10 shadow-[1px_0_0_0_#f1f5f9]">Student Name</th>
                     <th className="p-3 border-r border-slate-100 bg-slate-50">Roll No.</th>
-                    {Array.from(new Set(monthlyRecords.map(r => r.date))).sort().map(d => (
-                      <th key={d} className="p-3 border-r border-slate-100 text-center" title={d}>{d.slice(-2)}</th>
+                    {Array.from(new Set(monthlyRecords.map(r => r.date))).sort().map((d: any) => (
+                      <th key={d} className="p-3 border-r border-slate-100 text-center" title={d}>{(d as string).slice(-2)}</th>
                     ))}
                     <th className="p-3 text-center bg-slate-50">%</th>
                   </tr>

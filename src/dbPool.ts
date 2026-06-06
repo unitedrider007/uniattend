@@ -17,7 +17,11 @@ export const pool = new Pool({
   connectionString: connectionString,
   ssl: process.env.NODE_ENV === "production"
     ? { rejectUnauthorized: false }
-    : undefined
+    : undefined,
+  // Serverless optimization: avoid holding massive pools in stateless ephemeral lambdas
+  max: process.env.NODE_ENV === "production" ? 2 : 10,
+  idleTimeoutMillis: 15000,
+  connectionTimeoutMillis: 5000
 });
 
 pool.on("connect", () => {

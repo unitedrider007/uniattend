@@ -31,6 +31,20 @@ const mapNotif = (r: any) => r ? { id: r.id, userId: r.user_id, title: r.title, 
 
 const app = express();
 
+  let dbInitialized = false;
+  app.use(async (req, res, next) => {
+    // Skip db initialization for pure frontend assets / files if any (though these are mostly served by Vercel static build directly)
+    if (!dbInitialized && req.path.startsWith("/api")) {
+      try {
+        await autoMigrateAndSeed();
+        dbInitialized = true;
+      } catch (err) {
+        console.error("❌ On-demand auto-migration failed:", err);
+      }
+    }
+    next();
+  });
+
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
@@ -940,7 +954,7 @@ async function autoMigrateAndSeed() {
 if (process.env.NODE_ENV !== "production") {
   (async () => {
     await autoMigrateAndSeed();
-    const PORT = process.env.PORT || 3000;
+    const PORT = Number(process.env.PORT) || 3000;
     const viteMod = "vite";
     const { createServer: createViteServer } = await import(viteMod);
     const vite = await createViteServer({
