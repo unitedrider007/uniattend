@@ -32,35 +32,22 @@ const mapNotif = (r: any) => r ? { id: r.id, userId: r.user_id, title: r.title, 
 
 // Auto migrations & seed db helper
 async function autoMigrateAndSeed() {
-  console.log("⚙️ [PostgreSQL] Initializing auto-migration system...");
-  try {
-    const checkTable = await pool.query(
-      "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users')"
-    );
-    const tableExists = checkTable.rows[0].exists;
-
-    if (!tableExists) {
-      console.log("🐘 [PostgreSQL] Database is uninitialized. Running schema.sql...");
-      const schemaPath = path.join(process.cwd(), "schema.sql");
-      if (fs.existsSync(schemaPath)) {
-        const schemaSql = fs.readFileSync(schemaPath, "utf8");
-        await pool.query(schemaSql);
-        console.log("✅ [PostgreSQL] Schema initialized successfully.");
-      } else {
-        console.error("❌ [PostgreSQL] schema.sql file not found at project root!");
-        return;
-      }
-    }
-  } catch (err) {
-    console.error("❌ [PostgreSQL] Auto-migration error:", err);
-  }
+  console.log("⏭️ [PostgreSQL] VERCEL DEBUG: Migrations dynamically disabled for serverless environment.");
+  return;
 }
 
 const app = express();
 
 // This promise resolves when the async setup (like DB migration) is complete.
 const ready = (async () => {
-  await autoMigrateAndSeed();
+  console.log("🚀 [Boot] VERCEL DEBUG: Step 1 - Starting execution block.");
+  try {
+    await autoMigrateAndSeed();
+    console.log("🚀 [Boot] VERCEL DEBUG: Step 2 - Migrations bypassed successfully.");
+  } catch (err) {
+    console.error("❌ [Boot] VERCEL DEBUG: AUTO_MIGRATION_FATAL", err);
+    throw err;
+  }
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
