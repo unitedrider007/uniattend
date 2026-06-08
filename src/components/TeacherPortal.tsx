@@ -58,16 +58,17 @@ export default function TeacherPortal({
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [monthlyRecords, setMonthlyRecords] = useState<any[]>([]);
   const [monthlyStudents, setMonthlyStudents] = useState<Student[]>([]);
+  const [isQuerying, setIsQuerying] = useState(false);
 
   // Trigger reloading of core Teacher datasets
   const loadTeacherData = () => {
     setLoading(true);
     
     Promise.all([
-      fetch("/api/subjects").then(res => res.json()),
-      fetch("/api/batches").then(res => res.json()),
-      fetch(`/api/analytics/teacher/${teacherUser.id}`).then(res => res.json()),
-      fetch("/api/attendance/audit-logs").then(res => res.json())
+      fetch("/api/subjects").then(res => res.ok ? res.json() : Promise.reject(res)),
+      fetch("/api/batches").then(res => res.ok ? res.json() : Promise.reject(res)),
+      fetch(`/api/analytics/teacher/${teacherUser.id}`).then(res => res.ok ? res.json() : Promise.reject(res)),
+      fetch("/api/attendance/audit-logs").then(res => res.ok ? res.json() : Promise.reject(res))
     ])
     .then(([allSubjects, allBatches, teacherStats, allAuditTrail]) => {
       const mySubjects = allSubjects.filter((s: Subject) => s.assignedTeacherId === teacherUser.id);
@@ -136,9 +137,9 @@ export default function TeacherPortal({
     if (!selectedBatchId) return;
 
     fetch("/api/students")
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : Promise.reject(res))
       .then((allStudents: Student[]) => {
-        const batchStudents = allStudents.filter(s => s.batchId === selectedBatchId).sort((a, b) => a.rollNumber.localeCompare(b.rollNumber, undefined, { numeric: true }));
+        const batchStudents = allStudents.filter(s => s.batchId === selectedBatchId).sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true }));
         setStudentsToMark(batchStudents);
         
         const defaultMap: { [id: string]: "PRESENT" | "ABSENT" } = {};
@@ -146,23 +147,25 @@ export default function TeacherPortal({
           defaultMap[s.id] = "PRESENT";
         });
         setAttendanceStates(defaultMap);
-      });
+      })
+      .catch(console.error);
   };
 
   // Switch batch during attendance tracking updates list immediately
   useEffect(() => {
     if ((activeTab === "MARK_ATTENDANCE" || mobileTab === "MARK") && selectedBatchId) {
       fetch("/api/students")
-        .then(res => res.json())
+        .then(res => res.ok ? res.json() : Promise.reject(res))
         .then((allStudents: Student[]) => {
-          const batchStudents = allStudents.filter(s => s.batchId === selectedBatchId).sort((a, b) => a.rollNumber.localeCompare(b.rollNumber, undefined, { numeric: true }));
+          const batchStudents = allStudents.filter(s => s.batchId === selectedBatchId).sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true }));
           setStudentsToMark(batchStudents);
           const defaultMap: { [id: string]: "PRESENT" | "ABSENT" } = {};
           batchStudents.forEach(s => {
             defaultMap[s.id] = "PRESENT";
           });
           setAttendanceStates(defaultMap);
-        });
+        })
+        .catch(console.error);
     }
   }, [selectedBatchId, activeTab, mobileTab]);
 
@@ -234,15 +237,16 @@ export default function TeacherPortal({
       alert("Ensure subject, batch and target date are supplied.");
       return;
     }
+    setIsQuerying(true);
 
     setQueriedRecordsToEdit([]);
     setEditingRecord(null);
 
     fetch(`/api/attendance/query?subjectId=${editSubjectId}&batchId=${editBatchId}&date=${editDate}`)
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : Promise.reject(res))
       .then((records: AttendanceRecord[]) => {
         fetch("/api/students")
-          .then(res2 => res2.json())
+          .then(res2 => res2.ok ? res2.json() : Promise.reject(res2))
           .then((allStudents: Student[]) => {
             const populated = records.map(rec => {
               const student = allStudents.find(s => s.id === rec.studentId);
@@ -259,8 +263,11 @@ export default function TeacherPortal({
               alert("No attendance records found for this custom query parameters.");
             }
             setQueriedRecordsToEdit(populated);
-          });
-      });
+          })
+          .catch(console.error);
+      })
+      .catch(console.error)
+      .finally(() => setIsQuerying(false));
   };
 
   // Submit corrected value to DB
@@ -282,14 +289,15 @@ export default function TeacherPortal({
         modifiedBy: teacherUser.fullName,
       })
     })
-    .then(res => res.json())
+    .then(res => res.ok ? res.json() : Promise.reject(res))
     .then(() => {
       alert("Database Row corrected. Logs exported to Attendance Audit Trail instantly.");
       setEditingRecord(null);
       setCorrectionRemarks("");
       queryAttendanceForCorrections();
       loadTeacherData();
-    });
+    })
+    .catch(console.error);
   };
 
   const generateMonthlyReport = () => {
@@ -297,12 +305,13 @@ export default function TeacherPortal({
       alert("Please select a subject, batch, and target month to generate the report.");
       return;
     }
+    setIsQuerying(true);
     
     Promise.all([
-      fetch(`/api/attendance/query?subjectId=${reportSubjectId}&batchId=${reportBatchId}`).then(res => res.json()),
-      fetch("/api/students").then(res => res.json())
+      fetch(`/api/attendance/query?subjectId=${reportSubjectId}&batchId=${reportBatchId}`).then(res => res.ok ? res.json() : Promise.reject(res)),
+      fetch("/api/students").then(res => res.ok ? res.json() : Promise.reject(res))
     ]).then(([records, allStudents]) => {
-      const batchStudents = allStudents.filter((s: Student) => s.batchId === reportBatchId).sort((a, b) => a.rollNumber.localeCompare(b.rollNumber, undefined, { numeric: true }));
+      const batchStudents = allStudents.filter((s: Student) => s.batchId === reportBatchId).sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true }));
       const filteredRecords = records.filter((r: AttendanceRecord) => r.date.startsWith(reportMonth));
       
       if (filteredRecords.length === 0) {
@@ -311,7 +320,9 @@ export default function TeacherPortal({
 
       setMonthlyStudents(batchStudents);
       setMonthlyRecords(filteredRecords);
-    });
+    })
+    .catch(console.error)
+    .finally(() => setIsQuerying(false));
   };
 
 
@@ -325,7 +336,7 @@ export default function TeacherPortal({
   const reportSubject = subjects.find(s => s.id === reportSubjectId);
   const validReportBatches = reportSubject ? batches.filter(b => b.departmentId === reportSubject.departmentId && b.semester === reportSubject.semester) : batches;
 
-  if (loading || !analytics) {
+  if (loading || !analytics || analytics.classesConducted === undefined) {
     return (
       <div className="flex flex-col items-center justify-center p-12 min-h-[400px]">
         <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent mb-4"></div>
@@ -396,16 +407,17 @@ export default function TeacherPortal({
                   setMobileMarkStep(1);
                   setStatusMessage("");
                   fetch("/api/students")
-                    .then(res => res.json())
+                    .then(res => res.ok ? res.json() : Promise.reject(res))
                     .then((allStudents: Student[]) => {
-                      const batchStudents = allStudents.filter(s => s.batchId === selectedBatchId).sort((a, b) => a.rollNumber.localeCompare(b.rollNumber, undefined, { numeric: true }));
+                      const batchStudents = allStudents.filter(s => s.batchId === selectedBatchId).sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true }));
                       setStudentsToMark(batchStudents);
                       const defaultMap: { [id: string]: "PRESENT" | "ABSENT" } = {};
                       batchStudents.forEach(s => {
                         defaultMap[s.id] = "PRESENT";
                       });
                       setAttendanceStates(defaultMap);
-                    });
+                    })
+                    .catch(console.error);
                 }}
                 className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-slate-905 text-white rounded-xl text-xs font-extrabold shadow-sm select-none"
               >
@@ -638,7 +650,12 @@ export default function TeacherPortal({
               </div>
 
               {/* Queried results to select and edit */}
-              {queriedRecordsToEdit.length > 0 && (
+              {isQuerying ? (
+                <div className="flex flex-col items-center justify-center p-8 bg-white border border-slate-150 rounded-xl shadow-2xs">
+                  <div className="animate-spin rounded-full h-6 w-6 border-4 border-indigo-600 border-t-transparent mb-3"></div>
+                  <p className="text-slate-400 font-medium text-xs">Querying Database...</p>
+                </div>
+              ) : queriedRecordsToEdit.length > 0 && (
                 <div className="bg-white border border-slate-150 rounded-xl divide-y divide-slate-100 shadow-2xs overflow-hidden">
                   {queriedRecordsToEdit.map(rec => (
                     <div key={rec.id} className="p-3 flex items-center justify-between text-xs hover:bg-slate-50/50">
@@ -833,7 +850,12 @@ export default function TeacherPortal({
                 </div>
               </div>
               
-              {monthlyStudents.length > 0 && (
+              {isQuerying ? (
+                <div className="flex flex-col items-center justify-center p-8 bg-white border border-slate-150 rounded-xl shadow-2xs">
+                  <div className="animate-spin rounded-full h-6 w-6 border-4 border-indigo-600 border-t-transparent mb-3"></div>
+                  <p className="text-slate-400 font-medium text-xs">Querying Database...</p>
+                </div>
+              ) : monthlyStudents.length > 0 && (
                 <div className="bg-white border border-slate-150 rounded-xl overflow-x-auto shadow-2xs p-2">
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
@@ -903,16 +925,17 @@ export default function TeacherPortal({
               setMobileMarkStep(1);
               setStatusMessage("");
               fetch("/api/students")
-                .then(res => res.json())
+                .then(res => res.ok ? res.json() : Promise.reject(res))
                 .then((allStudents: Student[]) => {
-                  const batchStudents = allStudents.filter(s => s.batchId === selectedBatchId).sort((a, b) => a.rollNumber.localeCompare(b.rollNumber, undefined, { numeric: true }));
+                  const batchStudents = allStudents.filter(s => s.batchId === selectedBatchId).sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true }));
                   setStudentsToMark(batchStudents);
                   const defaultMap: { [id: string]: "PRESENT" | "ABSENT" } = {};
                   batchStudents.forEach(s => {
                     defaultMap[s.id] = "PRESENT";
                   });
                   setAttendanceStates(defaultMap);
-                });
+                })
+                .catch(console.error);
             }}
             className={`flex flex-col items-center justify-center w-12 sm:w-14 h-14 rounded-xl transition-all ${
               mobileTab === "MARK" ? "text-amber-600 font-bold scale-105" : "text-slate-400 hover:text-slate-600"
@@ -1411,7 +1434,12 @@ export default function TeacherPortal({
             </div>
           </div>
 
-          {monthlyStudents.length > 0 && (
+          {isQuerying ? (
+            <div className="flex flex-col items-center justify-center p-12 min-h-[200px] border border-slate-100 rounded-xl bg-slate-50/50">
+              <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent mb-4"></div>
+              <p className="text-slate-400 font-medium text-xs text-center">Querying Database...</p>
+            </div>
+          ) : monthlyStudents.length > 0 && (
             <div className="border border-slate-100 rounded-xl overflow-x-auto">
               <table className="w-full text-left border-collapse whitespace-nowrap text-xs">
                 <thead>
@@ -1523,7 +1551,12 @@ export default function TeacherPortal({
           </div>
 
           {/* List of queried records */}
-          {queriedRecordsToEdit.length > 0 && (
+          {isQuerying ? (
+            <div className="flex flex-col items-center justify-center p-12 min-h-[200px] border border-slate-100 rounded-xl bg-slate-50/50">
+              <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent mb-4"></div>
+              <p className="text-slate-400 font-medium text-xs text-center">Querying Database...</p>
+            </div>
+          ) : queriedRecordsToEdit.length > 0 && (
             <div className="border border-slate-100 rounded-xl divide-y divide-slate-50">
               {queriedRecordsToEdit.map((rec) => (
                 <div key={rec.id} className="p-4 flex items-center justify-between text-xs hover:bg-slate-50/50">

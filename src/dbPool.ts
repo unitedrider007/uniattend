@@ -20,8 +20,8 @@ export const pool = new Pool({
   ssl: (process.env.NODE_ENV === "production" || hasSupabaseUrl)
     ? { rejectUnauthorized: false }
     : undefined,
-  // Serverless optimization: avoid holding massive pools in stateless ephemeral lambdas
-  max: process.env.NODE_ENV === "production" ? 2 : 10,
+  // Supabase / Neon pooled connection settings increased to 50 for safety
+  max: 50,
   idleTimeoutMillis: 15000,
   connectionTimeoutMillis: 5000
 });

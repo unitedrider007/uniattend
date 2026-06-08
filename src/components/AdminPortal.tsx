@@ -61,13 +61,13 @@ export default function AdminPortal() {
   const refreshDatabase = () => {
     setLoading(true);
     Promise.all([
-      fetch("/api/departments").then(res => res.json()),
-      fetch("/api/batches").then(res => res.json()),
-      fetch("/api/subjects").then(res => res.json()),
-      fetch("/api/teachers").then(res => res.json()),
-      fetch("/api/students").then(res => res.json()),
-      fetch("/api/analytics/admin-summary").then(res => res.json()),
-      fetch("/api/analytics/students-summary").then(res => res.json())
+      fetch("/api/departments").then(res => res.ok ? res.json() : Promise.reject(res)),
+      fetch("/api/batches").then(res => res.ok ? res.json() : Promise.reject(res)),
+      fetch("/api/subjects").then(res => res.ok ? res.json() : Promise.reject(res)),
+      fetch("/api/teachers").then(res => res.ok ? res.json() : Promise.reject(res)),
+      fetch("/api/students").then(res => res.ok ? res.json() : Promise.reject(res)),
+      fetch("/api/analytics/admin-summary").then(res => res.ok ? res.json() : Promise.reject(res)),
+      fetch("/api/analytics/students-summary").then(res => res.ok ? res.json() : Promise.reject(res))
     ])
     .then(([allDepts, allBatches, allSubjects, allTeachers, allStudents, stats, summary]) => {
       setDepartments(allDepts);
@@ -140,13 +140,14 @@ export default function AdminPortal() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(deptForm)
     })
-    .then(res => res.json())
+    .then(res => res.ok ? res.json() : Promise.reject(res))
     .then(() => {
       setShowDeptModal(false);
       setDeptForm({ name: "", code: "", description: "" });
       setSelectedDept(null);
       refreshDatabase();
-    });
+    })
+    .catch(console.error);
   };
 
   const deleteDept = (id: string) => {
@@ -164,11 +165,12 @@ export default function AdminPortal() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(batchForm)
     })
-    .then(res => res.json())
+    .then(res => res.ok ? res.json() : Promise.reject(res))
     .then(() => {
       setShowBatchModal(false);
       refreshDatabase();
-    });
+    })
+    .catch(console.error);
   };
 
   const deleteBatch = (id: string) => {
@@ -189,11 +191,12 @@ export default function AdminPortal() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(subjectForm)
     })
-    .then(res => res.json())
+    .then(res => res.ok ? res.json() : Promise.reject(res))
     .then(() => {
       setShowSubjectModal(false);
       refreshDatabase();
-    });
+    })
+    .catch(console.error);
   };
 
   const deleteSubject = (id: string) => {
@@ -354,7 +357,7 @@ export default function AdminPortal() {
     }
   };
 
-  if (loading || !analytics) {
+  if (loading || !analytics || !analytics.totals) {
     return (
       <div className="flex flex-col items-center justify-center p-12 min-h-[400px]">
         <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-605 border-t-transparent mb-4"></div>
@@ -636,11 +639,12 @@ export default function AdminPortal() {
 
           {/* Department Modals Overlay form */}
           {showDeptModal && (
-            <div className="p-5 bg-indigo-950/5 border border-indigo-900/20 rounded-2xl animate-fade-in space-y-4">
-              <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">
-                {selectedDept ? "Update Department Properties" : "Create New Department"}
-              </h4>
-              <form onSubmit={saveDept} className="space-y-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 animate-fade-in relative">
+                <h4 className="font-extrabold text-slate-800 text-sm uppercase tracking-wider border-b border-slate-100 pb-3">
+                  {selectedDept ? "Update Department Properties" : "Create New Department"}
+                </h4>
+                <form onSubmit={saveDept} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Department Name *</label>
@@ -693,16 +697,18 @@ export default function AdminPortal() {
                   </button>
                 </div>
               </form>
+              </div>
             </div>
           )}
 
           {/* Batch Modal Overlay */}
           {showBatchModal && (
-            <div className="p-5 bg-indigo-950/5 border border-indigo-900/20 rounded-2xl animate-fade-in space-y-4 mt-4">
-              <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">
-                Create New Batch
-              </h4>
-              <form onSubmit={saveBatch} className="space-y-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4 animate-fade-in relative">
+                <h4 className="font-extrabold text-slate-800 text-sm uppercase tracking-wider border-b border-slate-100 pb-3">
+                  Create New Batch
+                </h4>
+                <form onSubmit={saveBatch} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Batch Name *</label>
@@ -755,16 +761,18 @@ export default function AdminPortal() {
                   </button>
                 </div>
               </form>
+              </div>
             </div>
           )}
 
           {/* Subject Modal Overlay */}
           {showSubjectModal && (
-            <div className="p-5 bg-indigo-950/5 border border-indigo-900/20 rounded-2xl animate-fade-in space-y-4 mt-4">
-              <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">
-                {selectedSubject ? "Edit Subject" : "Create New Subject"}
-              </h4>
-              <form onSubmit={saveSubject} className="space-y-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4 animate-fade-in relative">
+                <h4 className="font-extrabold text-slate-800 text-sm uppercase tracking-wider border-b border-slate-100 pb-3">
+                  {selectedSubject ? "Edit Subject" : "Create New Subject"}
+                </h4>
+                <form onSubmit={saveSubject} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Subject Name *</label>
@@ -832,6 +840,7 @@ export default function AdminPortal() {
                   </button>
                 </div>
               </form>
+              </div>
             </div>
           )}
         </div>
@@ -924,11 +933,12 @@ export default function AdminPortal() {
 
           {/* Teacher Modals Overlay form */}
           {showTeacherModal && (
-            <div className="p-5 bg-indigo-950/5 border border-indigo-900/20 rounded-2xl space-y-4">
-              <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">
-                {selectedTeacher ? "Modify Staff Parameters" : "Register Staff User Account"}
-              </h4>
-              <form onSubmit={saveTeacher} className="space-y-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 space-y-4 animate-fade-in relative">
+                <h4 className="font-extrabold text-slate-800 text-sm uppercase tracking-wider border-b border-slate-100 pb-3">
+                  {selectedTeacher ? "Modify Staff Parameters" : "Register Staff User Account"}
+                </h4>
+                <form onSubmit={saveTeacher} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Employee ID Code *</label>
@@ -1044,6 +1054,7 @@ export default function AdminPortal() {
                   </button>
                 </div>
               </form>
+              </div>
             </div>
           )}
         </div>
@@ -1149,7 +1160,7 @@ export default function AdminPortal() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-            {[...students].sort((a, b) => a.rollNumber.localeCompare(b.rollNumber, undefined, { numeric: true })).map((stu) => {
+            {[...students].sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true })).map((stu) => {
                   const batchMatched = batches.find(b => b.id === stu.batchId);
                   return (
                     <tr key={stu.id} className="hover:bg-slate-50/40">
@@ -1204,11 +1215,12 @@ export default function AdminPortal() {
 
           {/* Student Modal overlay form */}
           {showStudentModal && (
-            <div className="p-5 bg-indigo-950/5 border border-indigo-900/20 rounded-2xl space-y-4 animate-fade-in">
-              <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">
-                {selectedStudent ? "Update Pupil Domain Properties" : "Enroll New Active Student"}
-              </h4>
-              <form onSubmit={saveStudent} className="space-y-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-6 space-y-4 animate-fade-in relative">
+                <h4 className="font-extrabold text-slate-800 text-sm uppercase tracking-wider border-b border-slate-100 pb-3">
+                  {selectedStudent ? "Update Pupil Domain Properties" : "Enroll New Active Student"}
+                </h4>
+                <form onSubmit={saveStudent} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Enrollment Number *</label>
@@ -1332,6 +1344,7 @@ export default function AdminPortal() {
                   </button>
                 </div>
               </form>
+              </div>
             </div>
           )}
         </div>

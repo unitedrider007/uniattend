@@ -223,8 +223,9 @@ const app = express();
     if (!employeeId || !fullName || !email || !departmentId || !password) {
       return res.status(400).json({ message: "Missing required fields: Employee ID, Full Name, Email, Department, and Password are required." });
     }
-    const client = await pool.connect();
+    let client;
     try {
+      client = await pool.connect();
       await client.query("BEGIN");
       const id = `t-${Date.now()}`;
       const r = await client.query(
@@ -238,7 +239,7 @@ const app = express();
       await client.query("COMMIT");
       res.status(201).json(mapTeach(r.rows[0]));
     } catch (err: any) {
-      await client.query("ROLLBACK");
+      if (client) await client.query("ROLLBACK");
       if (err.code === '23505') { // Handle unique constraint violations
         if (err.constraint && err.constraint.includes('email')) {
           return res.status(409).json({ message: `A user with the email '${email}' already exists.` });
@@ -251,21 +252,22 @@ const app = express();
       console.error("Error saving teacher:", err);
       res.status(500).json({ message: `Database Error: ${err.message || "Unknown error occurred while saving."}` });
     } finally {
-      client.release();
+      if (client) client.release();
     }
   });
 
   app.put("/api/teachers/:id", async (req, res) => {
     const { fullName, email, phone, departmentId, isActive, profilePhotoUrl, password } = req.body;
-    const client = await pool.connect();
+    let client;
     try {
+      client = await pool.connect();
       await client.query("BEGIN");
       const r = await client.query(
         "UPDATE teachers SET full_name = COALESCE($1, full_name), email = COALESCE($2, email), phone = COALESCE($3, phone), department_id = COALESCE($4, department_id), is_active = COALESCE($5, is_active), profile_photo_url = COALESCE($6, profile_photo_url) WHERE id = $7 RETURNING *",
         [fullName || null, email || null, phone !== undefined ? phone : null, departmentId || null, isActive !== undefined ? isActive : null, profilePhotoUrl || null, req.params.id]
       );
       if (r.rowCount === 0) {
-        await client.query("ROLLBACK");
+        if (client) await client.query("ROLLBACK");
         return res.status(404).json({ message: "Not found" });
       }
       if (password) {
@@ -276,10 +278,10 @@ const app = express();
       await client.query("COMMIT");
       res.json(mapTeach(r.rows[0]));
     } catch (e) {
-      await client.query("ROLLBACK");
+      if (client) await client.query("ROLLBACK");
       res.status(500).json({ message: "Error updating teacher" });
     } finally {
-      client.release();
+      if (client) client.release();
     }
   });
 
@@ -307,8 +309,9 @@ const app = express();
     if (!enrollmentNumber || !rollNumber || !fullName || !email || !batchId || !semester || !password) {
       return res.status(400).json({ message: "Missing student parameters including password." });
     }
-    const client = await pool.connect();
+    let client;
     try {
+      client = await pool.connect();
       await client.query("BEGIN");
       const id = `s-${Date.now()}`;
       const r = await client.query(
@@ -322,19 +325,20 @@ const app = express();
       await client.query("COMMIT");
       res.status(201).json(mapStu(r.rows[0]));
     } catch (err) {
-      await client.query("ROLLBACK");
+      if (client) await client.query("ROLLBACK");
       res.status(500).json({ message: `Database Error: ${(err as any).message || "Student registration failed"}` });
     } finally {
-      client.release();
+      if (client) client.release();
     }
   });
 
   app.post("/api/students/bulk-upload", async (req, res) => {
     const { csvRows } = req.body;
     if (!Array.isArray(csvRows)) return res.status(400).json({ message: "Invalid CSV" });
-    const client = await pool.connect();
+    let client;
     const importedIds: string[] = [];
     try {
+      client = await pool.connect();
       await client.query("BEGIN");
       for (let i = 0; i < csvRows.length; i++) {
         const row = csvRows[i];
@@ -365,25 +369,26 @@ const app = express();
       await client.query("COMMIT");
       res.json({ message: `Successfully parsed and imported ${importedIds.length} profiles.`, importedCount: importedIds.length });
     } catch (err: any) {
-      await client.query("ROLLBACK");
+      if (client) await client.query("ROLLBACK");
       console.error("CSV Upload Error:", err);
       res.status(500).json({ message: err.message || "Bulk upload failed due to database constraint." });
     } finally {
-      client.release();
+      if (client) client.release();
     }
   });
 
   app.put("/api/students/:id", async (req, res) => {
     const { fullName, email, phone, batchId, semester, isActive, profilePhotoUrl, password } = req.body;
-    const client = await pool.connect();
+    let client;
     try {
+      client = await pool.connect();
       await client.query("BEGIN");
       const r = await client.query(
         "UPDATE students SET full_name = COALESCE($1, full_name), email = COALESCE($2, email), phone = COALESCE($3, phone), batch_id = COALESCE($4, batch_id), semester = COALESCE($5, semester), is_active = COALESCE($6, is_active), profile_photo_url = COALESCE($7, profile_photo_url) WHERE id = $8 RETURNING *",
         [fullName || null, email || null, phone !== undefined ? phone : null, batchId || null, semester ? parseInt(semester, 10) : null, isActive !== undefined ? isActive : null, profilePhotoUrl || null, req.params.id]
       );
       if (r.rowCount === 0) {
-        await client.query("ROLLBACK");
+        if (client) await client.query("ROLLBACK");
         return res.status(404).json({ message: "Not found" });
       }
       if (password) {
@@ -394,10 +399,10 @@ const app = express();
       await client.query("COMMIT");
       res.json(mapStu(r.rows[0]));
     } catch (e) {
-      await client.query("ROLLBACK");
+      if (client) await client.query("ROLLBACK");
       res.status(500).json({ message: "Update fail" });
     } finally {
-      client.release();
+      if (client) client.release();
     }
   });
 
@@ -467,9 +472,10 @@ const app = express();
       return res.status(400).json({ message: "Invalid payload parameters" });
     }
 
-    const client = await pool.connect();
+    let client;
     const inserted: any[] = [];
     try {
+      client = await pool.connect();
       await client.query("BEGIN");
       for (let rec of records) {
         const q = `
@@ -486,10 +492,10 @@ const app = express();
       await client.query("COMMIT");
       res.json({ success: true, message: `Successfully structured attendance records`, records: inserted });
     } catch (err) {
-      await client.query("ROLLBACK");
+      if (client) await client.query("ROLLBACK");
       res.status(500).json({ message: "Operational transaction failed" });
     } finally {
-      client.release();
+      if (client) client.release();
     }
   });
 
@@ -499,12 +505,13 @@ const app = express();
       return res.status(400).json({ message: "Required parameters missing" });
     }
 
-    const client = await pool.connect();
+    let client;
     try {
+      client = await pool.connect();
       await client.query("BEGIN");
       const recordRes = await client.query("SELECT * FROM attendance_records WHERE id = $1", [recordId]);
       if (recordRes.rowCount === 0) {
-        await client.query("ROLLBACK");
+        if (client) await client.query("ROLLBACK");
         return res.status(404).json({ message: "Attendance record not found" });
       }
       const previousRecord = recordRes.rows[0];
@@ -537,10 +544,10 @@ const app = express();
       await client.query("COMMIT");
       res.json({ success: true, updatedRecord, audit: mapAudit(auditRes.rows[0]) });
     } catch (err) {
-      await client.query("ROLLBACK");
+      if (client) await client.query("ROLLBACK");
       res.status(500).json({ message: "Audit transaction failed" });
     } finally {
-      client.release();
+      if (client) client.release();
     }
   });
 
@@ -587,18 +594,22 @@ const app = express();
 
   // Admin Level System Stats
   app.get("/api/analytics/admin-summary", async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
     try {
-      const studentsCount = await pool.query("SELECT COUNT(*) FROM students");
-      const teachersCount = await pool.query("SELECT COUNT(*) FROM teachers");
-      const subjectsCount = await pool.query("SELECT COUNT(*) FROM subjects");
-      const deptsCount = await pool.query("SELECT COUNT(*) FROM departments");
-      const batchesCount = await pool.query("SELECT COUNT(*) FROM batches");
+      const counts = await pool.query(`
+        SELECT 
+          (SELECT COUNT(*) FROM students) as students,
+          (SELECT COUNT(*) FROM teachers) as teachers,
+          (SELECT COUNT(*) FROM subjects) as subjects,
+          (SELECT COUNT(*) FROM departments) as departments,
+          (SELECT COUNT(*) FROM batches) as batches
+      `);
 
-      const totalStudents = Number(studentsCount.rows[0].count);
-      const totalTeachers = Number(teachersCount.rows[0].count);
-      const totalSubjects = Number(subjectsCount.rows[0].count);
-      const totalDepartments = Number(deptsCount.rows[0].count);
-      const totalBatches = Number(batchesCount.rows[0].count);
+      const totalStudents = Number(counts.rows[0].students);
+      const totalTeachers = Number(counts.rows[0].teachers);
+      const totalSubjects = Number(counts.rows[0].subjects);
+      const totalDepartments = Number(counts.rows[0].departments);
+      const totalBatches = Number(counts.rows[0].batches);
 
       const dRes = await pool.query("SELECT MAX(date) FROM attendance_records");
       const latestDate = dRes.rows[0]?.max;
@@ -616,17 +627,16 @@ const app = express();
       }
 
       let deptAverages: any[] = [];
-      const allDepts = await pool.query("SELECT * FROM departments");
-      for (let dept of allDepts.rows) {
-        const deptRes = await pool.query(
-          `SELECT COUNT(*) as total, SUM(CASE WHEN status = 'PRESENT' THEN 1 ELSE 0 END) as presents
-           FROM attendance_records r
-           JOIN subjects s ON r.subject_id = s.id
-           WHERE s.department_id = $1`,
-          [dept.id]
-        );
-        const total = Number(deptRes.rows[0].total);
-        const presents = Number(deptRes.rows[0].presents || 0);
+      const allDeptsRes = await pool.query(`
+        SELECT d.id, d.name, d.code, COUNT(r.id) as total, SUM(CASE WHEN r.status = 'PRESENT' THEN 1 ELSE 0 END) as presents
+        FROM departments d
+        LEFT JOIN subjects s ON d.id = s.department_id
+        LEFT JOIN attendance_records r ON s.id = r.subject_id
+        GROUP BY d.id, d.name, d.code
+      `);
+      for (let dept of allDeptsRes.rows) {
+        const total = Number(dept.total);
+        const presents = Number(dept.presents || 0);
         deptAverages.push({
           departmentName: dept.name,
           code: dept.code,
@@ -635,18 +645,18 @@ const app = express();
       }
 
       let semesterData: any[] = [];
-      for (let sem of [1, 2, 3, 4, 5, 6, 7, 8]) {
-        const semRes = await pool.query(
-          `SELECT COUNT(*) as total, SUM(CASE WHEN status = 'PRESENT' THEN 1 ELSE 0 END) as presents
-           FROM attendance_records r
-           JOIN subjects s ON r.subject_id = s.id
-           WHERE s.semester = $1`,
-          [sem]
-        );
-        const total = Number(semRes.rows[0].total);
-        const presents = Number(semRes.rows[0].presents || 0);
+      const semRes = await pool.query(`
+        SELECT s.semester, COUNT(r.id) as total, SUM(CASE WHEN r.status = 'PRESENT' THEN 1 ELSE 0 END) as presents
+        FROM subjects s
+        JOIN attendance_records r ON s.id = r.subject_id
+        GROUP BY s.semester
+        ORDER BY s.semester ASC
+      `);
+      for (let row of semRes.rows) {
+        const total = Number(row.total);
+        const presents = Number(row.presents || 0);
         if (total > 0) {
-          semesterData.push({ semester: sem, percentage: Math.round((presents / total) * 100) });
+          semesterData.push({ semester: row.semester, percentage: Math.round((presents / total) * 100) });
         }
       }
       if (semesterData.length === 0) {
@@ -689,6 +699,7 @@ const app = express();
 
   // Bulk Students Summary
   app.get("/api/analytics/students-summary", async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
     try {
       const q = `
         SELECT 
@@ -725,55 +736,58 @@ const app = express();
 
   // Student Dashboard statistics
   app.get("/api/analytics/student/:studentId", async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
     const sId = req.params.studentId;
     try {
       const studentRes = await pool.query("SELECT * FROM students WHERE id = $1", [sId]);
       if (studentRes.rowCount === 0) return res.status(404).json({ message: "Student record not found." });
       const student = mapStu(studentRes.rows[0])!;
 
-      const recordsRes = await pool.query("SELECT * FROM attendance_records WHERE student_id = $1", [sId]);
-      const records = recordsRes.rows;
-      const totalClasses = records.length;
-      const presentClasses = records.filter(r => r.status === "PRESENT").length;
-      const overallRatio = totalClasses > 0 ? Math.round((presentClasses / totalClasses) * 100) : 100;
-
       const batchRes = await pool.query("SELECT department_id FROM batches WHERE id = $1", [student.batchId]);
       const departmentId = batchRes.rowCount > 0 ? batchRes.rows[0].department_id : "";
 
-      const subjectsRes = await pool.query(
-        "SELECT * FROM subjects WHERE semester = $1 AND department_id = $2",
-        [student.semester, departmentId]
+      // 1. Optimized Overall stats
+      const overallRes = await pool.query(
+        "SELECT COUNT(*) as total, SUM(CASE WHEN status = 'PRESENT' THEN 1 ELSE 0 END) as presents FROM attendance_records WHERE student_id = $1",
+        [sId]
       );
+      const totalClasses = Number(overallRes.rows[0].total || 0);
+      const presentClasses = Number(overallRes.rows[0].presents || 0);
+      const absentClasses = totalClasses - presentClasses;
+      const overallRatio = totalClasses > 0 ? Math.round((presentClasses / totalClasses) * 100) : 100;
       
-      const subjectStats = [];
-      for (let sub of subjectsRes.rows) {
-        const subRecords = records.filter(r => r.subject_id === sub.id);
-        const subTotal = subRecords.length;
-        const subPresents = subRecords.filter(r => r.status === "PRESENT").length;
+      // 2. Optimized Subject-wise stats
+      const subjectStatsRes = await pool.query(`
+        SELECT s.id, s.name, s.code,
+               COUNT(r.id) as sub_total,
+               SUM(CASE WHEN r.status = 'PRESENT' THEN 1 ELSE 0 END) as sub_presents
+        FROM subjects s
+        LEFT JOIN attendance_records r ON s.id = r.subject_id AND r.student_id = $1
+        WHERE s.semester = $2 AND s.department_id = $3
+        GROUP BY s.id, s.name, s.code
+      `, [sId, student.semester, departmentId]);
+
+      const subjectStats = subjectStatsRes.rows.map(row => {
+        const subTotal = Number(row.sub_total || 0);
+        const subPresents = Number(row.sub_presents || 0);
         const ratio = subTotal > 0 ? Math.round((subPresents / subTotal) * 100) : 100;
 
         let category = "SAFE";
         if (ratio < 60) category = "CRITICAL";
         else if (ratio < 80) category = "WARNING";
 
-        subjectStats.push({
-          subjectId: sub.id,
-          subjectName: sub.name,
-          subjectCode: sub.code,
-          total: subTotal,
-          present: subPresents,
-          absent: subTotal - subPresents,
-          percentage: ratio,
-          category
-        });
-      }
+        return {
+          subjectId: row.id, subjectName: row.name, subjectCode: row.code,
+          total: subTotal, present: subPresents, absent: subTotal - subPresents, percentage: ratio, category
+        };
+      });
 
       const logsQuery = `
         SELECT r.id, r.date, s.name as subject_name, s.code as subject_code, r.status
         FROM attendance_records r
         JOIN subjects s ON r.subject_id = s.id
         WHERE r.student_id = $1
-        ORDER BY r.date DESC
+        ORDER BY r.date DESC, r.id DESC
         LIMIT 20
       `;
       const recentLogsRes = await pool.query(logsQuery, [sId]);
@@ -801,19 +815,21 @@ const app = express();
         overallPercentage: overallRatio,
         totalClasses,
         presentClasses,
-        absentClasses: totalClasses - presentClasses,
+        absentClasses,
         subjectStats,
         recentLogs,
         monthlyStats,
         statusCategory: overallRatio < 60 ? "CRITICAL" : overallRatio < 80 ? "WARNING" : "SAFE"
       });
     } catch (err) {
+      console.error("Error compiling student dashboard facts:", err);
       res.status(500).json({ error: "Error compiling student dashboard facts" });
     }
   });
 
   // Teacher Dashboard statistics
   app.get("/api/analytics/teacher/:teacherId", async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
     const tId = req.params.teacherId;
     try {
       const teacherRes = await pool.query("SELECT * FROM teachers WHERE id = $1", [tId]);
@@ -830,61 +846,77 @@ const app = express();
       let teacherDefaulterCount = 0;
 
       if (assignedSubIds.length > 0) {
-        const recordsRes = await pool.query(
-          `SELECT r.*, s.full_name as student_name, sub.name as subject_name
-           FROM attendance_records r
-           JOIN students s ON r.student_id = s.id
-           JOIN subjects sub ON r.subject_id = sub.id
-           WHERE r.subject_id = ANY($1)`,
-          [assignedSubIds]
-        );
-        const teacherRecords = recordsRes.rows;
+        // 1. Overall stats
+        const overallStats = await pool.query(`
+          SELECT 
+            COUNT(DISTINCT subject_id || '_' || batch_id || '_' || date) as classes_conducted,
+            COUNT(id) as total_heads,
+            SUM(CASE WHEN status = 'PRESENT' THEN 1 ELSE 0 END) as presents
+          FROM attendance_records
+          WHERE subject_id = ANY($1)
+        `, [assignedSubIds]);
+        
+        classesConducted = Number(overallStats.rows[0].classes_conducted || 0);
+        const totalHeads = Number(overallStats.rows[0].total_heads || 0);
+        const totalPresents = Number(overallStats.rows[0].presents || 0);
+        averageAttendance = totalHeads > 0 ? Math.round((totalPresents / totalHeads) * 100) : 85;
 
-        const uniqueClassKeys = new Set(teacherRecords.map(r => `${r.subject_id}_${r.batch_id}_${r.date}`));
-        classesConducted = uniqueClassKeys.size;
-
-        const totalStudentsHeads = teacherRecords.length;
-        const totalPresents = teacherRecords.filter(r => r.status === "PRESENT").length;
-        averageAttendance = totalStudentsHeads > 0 ? Math.round((totalPresents / totalStudentsHeads) * 100) : 85;
+        // 2. Subject Summaries
+        const subStatsRes = await pool.query(`
+          SELECT subject_id, 
+            COUNT(DISTINCT date) as classes_held,
+            COUNT(id) as total_heads,
+            SUM(CASE WHEN status = 'PRESENT' THEN 1 ELSE 0 END) as presents
+          FROM attendance_records
+          WHERE subject_id = ANY($1)
+          GROUP BY subject_id
+        `, [assignedSubIds]);
 
         for (let sub of assignedSubjects) {
-          const sRecords = teacherRecords.filter(r => r.subject_id === sub.id);
-          const uniqueDates = new Set(sRecords.map(r => r.date)).size;
-          const totalHeads = sRecords.length;
-          const presents = sRecords.filter(r => r.status === "PRESENT").length;
+          const stat = subStatsRes.rows.find(r => r.subject_id === sub.id) || { classes_held: 0, total_heads: 0, presents: 0 };
+          const sHeads = Number(stat.total_heads);
+          const sPres = Number(stat.presents);
           subjectSummaries.push({
             subjectId: sub.id,
             subjectName: sub.name,
             subjectCode: sub.code,
-            classesHeld: uniqueDates,
-            averageRatio: totalHeads > 0 ? Math.round((presents / totalHeads) * 100) : 85
+            classesHeld: Number(stat.classes_held),
+            averageRatio: sHeads > 0 ? Math.round((sPres / sHeads) * 100) : 85
           });
         }
 
-        recentActivity = teacherRecords.map(r => {
+        // 3. Optimized Recent Activity Tracker Query
+        const recentActRes = await pool.query(`
+          SELECT r.id, r.date, s.full_name as student_name, sub.name as subject_name, r.status
+          FROM attendance_records r
+          JOIN students s ON r.student_id = s.id
+          JOIN subjects sub ON r.subject_id = sub.id
+          WHERE r.subject_id = ANY($1)
+          ORDER BY r.date DESC, r.id DESC
+          LIMIT 10
+        `, [assignedSubIds]);
+
+        recentActivity = recentActRes.rows.map(r => {
           const d = new Date(r.date);
           const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
           return { id: r.id, date: dateStr, studentName: r.student_name, subjectName: r.subject_name, status: r.status };
-        }).sort((a,b) => b.id.localeCompare(a.id)).slice(0, 10);
-
-        const studentPerformanceTracker: { [key: string]: { present: number, total: number } } = {};
-        teacherRecords.forEach((rec) => {
-          if (!studentPerformanceTracker[rec.student_id]) {
-            studentPerformanceTracker[rec.student_id] = { present: 0, total: 0 };
-          }
-          studentPerformanceTracker[rec.student_id].total++;
-          if (rec.status === 'PRESENT') {
-            studentPerformanceTracker[rec.student_id].present++;
-          }
         });
 
-        Object.keys(studentPerformanceTracker).forEach((key) => {
-          const perf = studentPerformanceTracker[key];
-          const ratio = (perf.present / perf.total) * 100;
-          if (ratio < 80) {
-            teacherDefaulterCount++;
-          }
-        });
+        // 4. Defaulters Count
+        const defaulterRes = await pool.query(`
+          SELECT COUNT(*) as count
+          FROM (
+            SELECT student_id,
+              COUNT(*) as total,
+              SUM(CASE WHEN status = 'PRESENT' THEN 1 ELSE 0 END) as present
+            FROM attendance_records
+            WHERE subject_id = ANY($1)
+            GROUP BY student_id
+          ) as student_stats
+          WHERE (present::float / total) < 0.8
+        `, [assignedSubIds]);
+        
+        teacherDefaulterCount = Number(defaulterRes.rows[0].count || 0);
       }
 
       res.json({
@@ -900,6 +932,7 @@ const app = express();
   });
 
   app.get("/api/analytics/batch/:batchId", async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
     const bId = req.params.batchId;
     try {
       const batchRes = await pool.query("SELECT * FROM batches WHERE id = $1", [bId]);

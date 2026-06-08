@@ -47,7 +47,7 @@ export default function StudentPortal({
       });
   }, [studentUser.id]);
 
-  if (loading || !data) {
+  if (loading || !data || !data.subjectStats) {
     return (
       <div className="flex flex-col items-center justify-center p-12 min-h-[400px]">
         <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent mb-4"></div>
@@ -125,7 +125,7 @@ SUBJECT-WISE SUMMARY:
   };
 
   // Student specific notifications filters
-  const stuNotifications = allNotifications.filter(n => n.message.includes(studentUser.fullName) || n.userId === "u-john");
+  const stuNotifications = (Array.isArray(allNotifications) ? allNotifications : []).filter(n => n?.message?.includes(studentUser.fullName) || n?.userId === "u-john");
 
   // ==========================================
   // MOBILE VIEW RENDER BLOCK (FOR FLUTTER APK)

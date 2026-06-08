@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Component, ReactNode } from "react";
 import { 
   Shield, Calendar, GraduationCap, CheckCircle,
-  LogOut, ArrowRight, Sparkles, BookOpen, Lock, Download, Phone, Globe
+  LogOut, ArrowRight, Sparkles, BookOpen, Lock, Download, Phone, Globe, AlertOctagon
 } from "lucide-react";
 
 // Import modular panels
@@ -11,6 +11,40 @@ import StudentPortal from "./components/StudentPortal";
 
 // Import Types
 import { Student, Teacher } from "./types";
+
+// Hardened Error Boundary to prevent white screen crashes
+class GlobalErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, errorMsg: string}> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, errorMsg: "" };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, errorMsg: error.message };
+  }
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("React Error Boundary caught a crash:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
+          <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mb-4">
+            <AlertOctagon className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-extrabold text-slate-800 mb-2">Application UI Crashed</h2>
+          <p className="text-slate-500 text-sm max-w-md mb-6">A critical rendering error occurred in the component tree. Please reload the dashboard.</p>
+          <code className="text-xs bg-white border border-slate-200 text-rose-600 p-3 rounded-lg max-w-lg mb-6 break-all shadow-sm">
+            {this.state.errorMsg}
+          </code>
+          <button onClick={() => window.location.reload()} className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold shadow-md hover:bg-slate-800">
+            Reload Application
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
   // Authentication & Responsive View States
@@ -46,8 +80,8 @@ export default function App() {
   // Fetch institutional directories from backend server
   const loadBaseCatalogs = () => {
     Promise.all([
-      fetch("/api/teachers").then(res => res.json()),
-      fetch("/api/students").then(res => res.json())
+      fetch("/api/teachers").then(res => res.ok ? res.json() : Promise.reject(res)),
+      fetch("/api/students").then(res => res.ok ? res.json() : Promise.reject(res))
     ])
     .then(([allTeachers, allStudents]) => {
       setTeachersList(allTeachers);
@@ -66,8 +100,8 @@ export default function App() {
   useEffect(() => {
     if (currentUser) {
       fetch(`/api/notifications/${currentUser.id}`)
-        .then(res => res.json())
-        .then(notif => setNotificationsList(notif))
+        .then(res => res.ok ? res.json() : Promise.reject(res))
+        .then(notif => setNotificationsList(Array.isArray(notif) ? notif : []))
         .catch(() => {});
     }
   }, [currentUser]);
@@ -155,6 +189,7 @@ Academic DevOps Center © 2026`;
   };
 
   return (
+    <GlobalErrorBoundary>
     <div className="min-h-screen bg-[#f8fafc] text-[#1e293b] font-sans tracking-tight antialiased flex flex-col pt-[72px] justify-between">
       
       {/* Central University System Premium Header */}
@@ -435,6 +470,7 @@ Academic DevOps Center © 2026`;
       )}
 
     </div>
+  </GlobalErrorBoundary>
   );
 }
 
