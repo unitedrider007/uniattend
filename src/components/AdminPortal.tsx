@@ -20,6 +20,7 @@ export default function AdminPortal() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [studentsSummary, setStudentsSummary] = useState<Record<string, any>>({});
   const [analytics, setAnalytics] = useState<AdminSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -65,15 +66,17 @@ export default function AdminPortal() {
       fetch("/api/subjects").then(res => res.json()),
       fetch("/api/teachers").then(res => res.json()),
       fetch("/api/students").then(res => res.json()),
-      fetch("/api/analytics/admin-summary").then(res => res.json())
+      fetch("/api/analytics/admin-summary").then(res => res.json()),
+      fetch("/api/analytics/students-summary").then(res => res.json())
     ])
-    .then(([allDepts, allBatches, allSubjects, allTeachers, allStudents, stats]) => {
+    .then(([allDepts, allBatches, allSubjects, allTeachers, allStudents, stats, summary]) => {
       setDepartments(allDepts);
       setBatches(allBatches);
       setSubjects(allSubjects);
       setTeachers(allTeachers);
       setStudents(allStudents);
       setAnalytics(stats);
+      setStudentsSummary(summary || {});
       setLoading(false);
     })
     .catch((err) => {
@@ -90,44 +93,40 @@ export default function AdminPortal() {
   useEffect(() => {
     if (loading || students.length === 0) return;
 
-    // Load custom metrics for all students list
-    const processed = students.map((stu) => {
+    // Load custom metrics for all students list synchronously from precalculated studentsSummary
+    const results = students.map((stu) => {
       const bDetail = batches.find(b => b.id === stu.batchId);
       const dDetail = departments.find(d => d.id === bDetail?.departmentId);
+      const stats = studentsSummary[stu.id] || { overallPercentage: 100, statusCategory: "SAFE" };
 
-      // Perform dynamic attendance calculations
-      return fetch(`/api/analytics/student/${stu.id}`)
-        .then(res => res.json())
-        .then((stats) => ({
-          studentId: stu.id,
-          fullName: stu.fullName,
-          enrollmentNumber: stu.enrollmentNumber,
-          rollNumber: stu.rollNumber,
-          departmentId: dDetail?.id,
-          deptName: dDetail?.name || "N/A",
-          semester: stu.semester,
-          percentage: stats.overallPercentage,
-          category: stats.statusCategory,
-          profilePhotoUrl: stu.profilePhotoUrl
-        }));
+      return {
+        studentId: stu.id,
+        fullName: stu.fullName,
+        enrollmentNumber: stu.enrollmentNumber,
+        rollNumber: stu.rollNumber,
+        departmentId: dDetail?.id,
+        deptName: dDetail?.name || "N/A",
+        semester: stu.semester,
+        percentage: stats.overallPercentage !== undefined ? stats.overallPercentage : 100,
+        category: stats.statusCategory || "SAFE",
+        profilePhotoUrl: stu.profilePhotoUrl
+      };
     });
 
-    Promise.all(processed).then((results) => {
-      let filtered = results;
-      
-      if (filterSemester !== "ALL") {
-        filtered = filtered.filter(r => r.semester === parseInt(filterSemester, 10));
-      }
-      if (filterDepartment !== "ALL") {
-        filtered = filtered.filter(r => r.departmentId === filterDepartment);
-      }
-      if (filterRatioRange !== "ALL") {
-        filtered = filtered.filter(r => r.category === filterRatioRange);
-      }
+    let filtered = results;
+    
+    if (filterSemester !== "ALL") {
+      filtered = filtered.filter(r => r.semester === parseInt(filterSemester, 10));
+    }
+    if (filterDepartment !== "ALL") {
+      filtered = filtered.filter(r => r.departmentId === filterDepartment);
+    }
+    if (filterRatioRange !== "ALL") {
+      filtered = filtered.filter(r => r.category === filterRatioRange);
+    }
 
-      setReportsList(filtered);
-    });
-  }, [students, batches, departments, filterSemester, filterDepartment, filterRatioRange, loading]);
+    setReportsList(filtered);
+  }, [students, batches, departments, studentsSummary, filterSemester, filterDepartment, filterRatioRange, loading]);
 
   // Departments CRUD functions
   const saveDept = (e: React.FormEvent) => {

@@ -687,6 +687,42 @@ const app = express();
     }
   });
 
+  // Bulk Students Summary
+  app.get("/api/analytics/students-summary", async (req, res) => {
+    try {
+      const q = `
+        SELECT 
+          s.id as student_id,
+          COALESCE(COUNT(r.id), 0) as total_classes,
+          COALESCE(SUM(CASE WHEN r.status = 'PRESENT' THEN 1 ELSE 0 END), 0) as present_classes
+        FROM students s
+        LEFT JOIN attendance_records r ON s.id = r.student_id
+        GROUP BY s.id
+      `;
+      const result = await pool.query(q);
+      const summary: Record<string, any> = {};
+      for (const row of result.rows) {
+        const tc = Number(row.total_classes);
+        const pc = Number(row.present_classes || 0);
+        const pct = tc > 0 ? Math.round((pc / tc) * 100) : 100;
+        let cat = "SAFE";
+        if (pct < 60) cat = "CRITICAL";
+        else if (pct < 80) cat = "WARNING";
+        
+        summary[row.student_id] = {
+          overallPercentage: pct,
+          statusCategory: cat,
+          totalClasses: tc,
+          presentClasses: pc
+        };
+      }
+      res.json(summary);
+    } catch (err) {
+      console.error("Error generating students summary:", err);
+      res.status(500).json({ error: "Error compiling students summary" });
+    }
+  });
+
   // Student Dashboard statistics
   app.get("/api/analytics/student/:studentId", async (req, res) => {
     const sId = req.params.studentId;
