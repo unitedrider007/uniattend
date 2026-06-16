@@ -3,6 +3,7 @@ import {
   Department, Batch, Teacher, Student, Subject, 
   AdminSummaryResponse, BatchAnalyticsResponse 
 } from "../types";
+import { uamsFetch as fetch } from "../utils/api";
 import { 
   Layers, Users, Columns, ClipboardList, TrendingUp, ShieldAlert,
   Award, FileSpreadsheet, Plus, Edit, Trash2, CheckCircle2, UserCheck, 

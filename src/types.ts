@@ -144,6 +144,7 @@ export interface StudentAnalyticsResponse {
   recentLogs: StudentLogItem[];
   monthlyStats: StudentMonthlyStat[];
   statusCategory: "SAFE" | "WARNING" | "CRITICAL";
+  sequenceNumber?: number;
 }
 
 export interface TeacherSubjectSummary {

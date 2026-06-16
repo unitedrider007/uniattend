@@ -32,7 +32,7 @@ Alternatively, you can manually enter these credentials into the Central Directo
 
 | Institutional Role | Email ID | Access Password | Sessional Authorization Details |
 | :--- | :--- | :--- | :--- |
-| **Campus Director (Admin)** | `director.delhi@nfsu.gov.in` | `admin123` | Master oversight over batches, courses, and overall campuses compliance ratios. |
+| **Campus Director (Admin)** | `director.delhi@nfsu.gov.in` | *[Database Seeding Generated]* | Master oversight over batches, courses, and overall campuses compliance ratios. Needs change password. |
 | **Dean Faculty (Professor)** | `raj.sharma@nfsu.gov.in` | `teacher123` | Coordinates lecture directories, marking attendance, and auditing logs. |
 | **M.Sc. Scholar (Student)** | `kartik.ranjan.msc@nfsu.gov.in` | `student123` | Personal overall compliance ratios, schedules trackers, and biometric notifications. |
 

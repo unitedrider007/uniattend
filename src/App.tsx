@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Component, ReactNode } from "react";
 import { 
   Shield, Calendar, GraduationCap, CheckCircle,
-  LogOut, ArrowRight, Sparkles, BookOpen, Lock, Download, Phone, Globe, AlertOctagon
+  LogOut, ArrowRight, Sparkles, BookOpen, Lock, Download, Phone, Globe, AlertOctagon, Eye, EyeOff
 } from "lucide-react";
 
 // Import modular panels
@@ -9,16 +9,29 @@ import AdminPortal from "./components/AdminPortal";
 import TeacherPortal from "./components/TeacherPortal";
 import StudentPortal from "./components/StudentPortal";
 
+// Import safety fetch wrapper to bypass iframe cookie blocking
+import { uamsFetch as fetch } from "./utils/api";
+
 // Import Types
 import { Student, Teacher } from "./types";
 
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  errorMsg: string;
+}
+
 // Hardened Error Boundary to prevent white screen crashes
-class GlobalErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, errorMsg: string}> {
-  constructor(props: any) {
+class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, errorMsg: "" };
   }
-  static getDerivedStateFromError(error: any) {
+
+  static getDerivedStateFromError(error: any): ErrorBoundaryState {
     return { hasError: true, errorMsg: error.message };
   }
   componentDidCatch(error: any, errorInfo: any) {
@@ -58,9 +71,17 @@ export default function App() {
   });
   const [emailForm, setEmailForm] = useState("");
   const [passwordForm, setPasswordForm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [errorLogin, setErrorLogin] = useState("");
   const [isMobileView, setIsMobileView] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+
+  // Password Policy States
+  const [currentPassForm, setCurrentPassForm] = useState("");
+  const [newPassForm, setNewPassForm] = useState("");
+  const [confirmPassForm, setConfirmPassForm] = useState("");
+  const [changePassError, setChangePassError] = useState("");
+  const [changePassSuccess, setChangePassSuccess] = useState("");
 
   // Entities List state
   const [teachersList, setTeachersList] = useState<Teacher[]>([]);
@@ -93,8 +114,10 @@ export default function App() {
   };
 
   useEffect(() => {
-    loadBaseCatalogs();
-  }, []);
+    if (currentUser) {
+      loadBaseCatalogs();
+    }
+  }, [currentUser]);
 
   // Synchronize notifications list for active logged-in accounts
   useEffect(() => {
@@ -131,6 +154,9 @@ export default function App() {
       return res.json();
     })
     .then((body) => {
+      if (body.accessToken) {
+        localStorage.setItem("uams_access_token", body.accessToken);
+      }
       setCurrentUser(body.user);
       setErrorLogin("");
     })
@@ -140,10 +166,49 @@ export default function App() {
   };
 
   const handleSignOut = () => {
+    localStorage.removeItem("uams_access_token");
     setCurrentUser(null);
     setEmailForm("");
     setPasswordForm("");
     setErrorLogin("");
+  };
+
+  const handlePasswordChangeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassForm !== confirmPassForm) {
+      setChangePassError("New password and confirm password do not match.");
+      return;
+    }
+    if (newPassForm.length < 8) {
+      setChangePassError("New password must be at least 8 characters long.");
+      return;
+    }
+
+    fetch("/api/auth/change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword: currentPassForm, newPassword: newPassForm })
+    })
+    .then((res) => {
+      if (!res.ok) {
+        return res.json().then(data => { throw new Error(data.message || "Failed to update security credentials."); });
+      }
+      return res.json();
+    })
+    .then(() => {
+      setChangePassSuccess("Password updated successfully. Access level fully granted!");
+      setChangePassError("");
+      const updatedUser = { ...currentUser, mustChangePassword: false };
+      setCurrentUser(updatedUser);
+      localStorage.setItem("uams_user", JSON.stringify(updatedUser));
+      setCurrentPassForm("");
+      setNewPassForm("");
+      setConfirmPassForm("");
+    })
+    .catch((err) => {
+      setChangePassError(err.message || "Failed to update credentials.");
+      setChangePassSuccess("");
+    });
   };
 
   // High-fidelity release bundle download for testing Android devices
@@ -199,12 +264,13 @@ Academic DevOps Center © 2026`;
             <img src="/nfsu-logo.png" alt="NFSU Logo" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" />
           </div>
           <div className="text-left">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-[8px] sm:text-[9.5px] uppercase tracking-wider font-extrabold text-[#b48d2d] font-sans">
-                National Forensic Sciences University
+            <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+              <span className="text-[8px] sm:text-[9.5px] uppercase tracking-wider font-extrabold text-[#b48d2d] font-sans whitespace-nowrap">
+                <span className="sm:hidden">NFSU</span>
+                <span className="hidden sm:inline">National Forensic Sciences University</span>
               </span>
-              <span className="h-1 w-1 bg-[#b48d2d] rounded-full"></span>
-              <span className="text-[8px] sm:text-[9.5px] uppercase tracking-wider font-extrabold text-[#64748b] font-sans">
+              <span className="h-1 w-1 bg-[#b48d2d] rounded-full shrink-0"></span>
+              <span className="text-[8px] sm:text-[9.5px] uppercase tracking-wider font-extrabold text-[#64748b] font-sans whitespace-nowrap">
                 Delhi Campus
               </span>
             </div>
@@ -399,14 +465,28 @@ Academic DevOps Center © 2026`;
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
                       Access Password
                     </label>
-                    <input
-                      type="password"
-                      required
-                      value={passwordForm}
-                      onChange={(e) => setPasswordForm(e.target.value)}
-                      placeholder="••••••••••••"
-                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-[#b48d2d] focus:ring-1 focus:ring-[#b48d2d]/35 bg-[#fefefe] transition-all"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required
+                        value={passwordForm}
+                        onChange={(e) => setPasswordForm(e.target.value)}
+                        placeholder="••••••••••••"
+                        className="w-full pl-3.5 pr-10 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-[#b48d2d] focus:ring-1 focus:ring-[#b48d2d]/35 bg-[#fefefe] transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer outline-none flex items-center justify-center"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   <button
@@ -427,6 +507,96 @@ Academic DevOps Center © 2026`;
               </div>
             </div>
 
+          </div>
+        ) : currentUser.mustChangePassword ? (
+          /* MANDATORY PASSWORD RESET ENFORCEMENT INTERCEPTOR */
+          <div className="w-full max-w-md mx-auto mt-6">
+            <div className="bg-white border-2 border-[#b48d2d]/30 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#b48d2d]"></div>
+              
+              <div className="text-center mb-6">
+                <div className="mx-auto w-12 h-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center mb-3">
+                  <Shield className="w-6 h-6 text-[#b48d2d]" />
+                </div>
+                <h3 className="text-base font-extrabold text-slate-800 tracking-tight">Mandatory Credentials Hardening</h3>
+                <p className="text-[11px] text-slate-500 mt-1 max-w-xs mx-auto">
+                  To comply with standard university digital security policies, you must customize your access credentials before continuing.
+                </p>
+              </div>
+
+              <form onSubmit={handlePasswordChangeSubmit} className="space-y-4">
+                {changePassError && (
+                  <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 text-[10.5px] rounded-xl text-center font-bold">
+                    {changePassError}
+                  </div>
+                )}
+                {changePassSuccess && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10.5px] rounded-xl text-center font-bold">
+                    {changePassSuccess}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={currentPassForm}
+                    onChange={(e) => setCurrentPassForm(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-[#b48d2d] focus:ring-1 focus:ring-[#b48d2d]/35 bg-[#fefefe] transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                    New Compliant Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={newPassForm}
+                    onChange={(e) => setNewPassForm(e.target.value)}
+                    placeholder="Min 8 characters"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-[#b48d2d] focus:ring-1 focus:ring-[#b48d2d]/35 bg-[#fefefe] transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={confirmPassForm}
+                    onChange={(e) => setConfirmPassForm(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-[#b48d2d] focus:ring-1 focus:ring-[#b48d2d]/35 bg-[#fefefe] transition-all"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs tracking-wide shadow-xs hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Update and Access Portal</span>
+                </button>
+
+                <div className="text-center mt-2.5">
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="text-[10px] text-slate-400 hover:text-[#b48d2d] font-bold transition-colors uppercase tracking-wider"
+                  >
+                    Cancel and Sign Out
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         ) : (
           /* LIVE RESPONSE PLATFORM VIEW (DATERMINES PORTAL AUTOMATICALLY BASED ON REAL VIEWPORT PRESETS) */

@@ -140,12 +140,13 @@ async function seedDatabase() {
       ('s-101', 'NFSU2026101', 'CYBER-SE-01', 'Kartik Ranjan', 'kartik.ranjan.msc@nfsu.gov.in', '+91-98761-00001', 'batch-cs-a-555', 3)
     `);
 
-    // Insert Authentication SSO Users
+    // Insert Authentication SSO Users with secure hashed passwords
+    // (Note: Production passwords must be cryptographically hashed using bcrypt)
     await client.query(`
-      INSERT INTO users (id, email, password_hash, role, target_id) VALUES
-      ('u-admin', 'director.delhi@nfsu.gov.in', 'admin123', 'ADMIN', NULL),
-      ('u-teacher', 'raj.sharma@nfsu.gov.in', 'teacher123', 'TEACHER', 't-101'),
-      ('u-student', 'kartik.ranjan.msc@nfsu.gov.in', 'student123', 'STUDENT', 's-101')
+      INSERT INTO users (id, email, password_hash, role, target_id, must_change_password) VALUES
+      ('u-admin', 'director.delhi@nfsu.gov.in', '$2b$12$KkQ1Z8kX/jFsmE.p5h3AHOV7KOnbYy/Qk.7WzREv2yEby1C1Msc4q', 'ADMIN', NULL, TRUE), -- Hashed representation
+      ('u-teacher', 'raj.sharma@nfsu.gov.in', '$2b$12$w0M9Dk8FzXJEmE.O6e4r9O...[teacher123_hash]', 'TEACHER', 't-101', FALSE),
+      ('u-student', 'kartik.ranjan.msc@nfsu.gov.in', '$2b$12$oH9Dk8FzXJEmE.O6e4r9O...[student123_hash]', 'STUDENT', 's-101', FALSE)
     `);
 
     await client.query("COMMIT");

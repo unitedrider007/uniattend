@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL,
-    target_id VARCHAR(255)
+    target_id VARCHAR(255),
+    must_change_password BOOLEAN DEFAULT TRUE
 );
 
 CREATE TABLE IF NOT EXISTS departments (
@@ -83,3 +84,36 @@ CREATE TABLE IF NOT EXISTS notifications (
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS announcements (
+    id VARCHAR(255) PRIMARY KEY,
+    teacher_id VARCHAR(255) REFERENCES teachers(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL, -- 'BATCH' | 'DEPARTMENT'
+    target_id VARCHAR(255) NOT NULL, -- batch_id or department_id
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS substitute_assignments (
+    id VARCHAR(255) PRIMARY KEY,
+    teacher_id VARCHAR(255) REFERENCES teachers(id) ON DELETE CASCADE,
+    substitute_id VARCHAR(255) REFERENCES teachers(id) ON DELETE CASCADE,
+    subject_id VARCHAR(255) REFERENCES subjects(id) ON DELETE CASCADE,
+    created_at TIMESTAMP NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    UNIQUE(teacher_id, subject_id, is_active)
+);
+
+-- Enable Row Level Security (RLS) on all public tables to secure PostgREST/Supabase exposure
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE departments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE batches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teachers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendance_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE substitute_assignments ENABLE ROW LEVEL SECURITY;

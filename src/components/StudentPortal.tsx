@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { jsPDF } from "jspdf";
 import { StudentAnalyticsResponse, Student } from "../types";
+import { uamsFetch as fetch } from "../utils/api";
 import { 
   User, CheckCircle, AlertTriangle, AlertOctagon, Calendar, 
   BookOpen, FolderDown, ArrowUpRight, Search, FileSpreadsheet, FileText, Bell,
-  Home, History, Clock, Info, ChevronRight
+  Home, History, Clock, Info, ChevronRight, TrendingUp
 } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
@@ -26,7 +28,7 @@ export default function StudentPortal({
   const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
 
   // Mobile App state management
-  const [mobileTab, setMobileTab] = useState<"HOME" | "SUBJECTS" | "TIMELINE" | "ALERTS">("HOME");
+  const [mobileTab, setMobileTab] = useState<"HOME" | "SUBJECTS" | "TIMELINE" | "ALERTS" | "ANALYTICS">("HOME");
   const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(null);
 
   // Fetch current student's real-time calculated analytics from Express API (full-stack integration)
@@ -93,39 +95,192 @@ export default function StudentPortal({
       setDownloadingFormat(null);
       
       const title = `UAMS_${studentUser.fullName.replace(/\s+/g, '_')}_Attendance_Report`;
-      let content = "";
+      
       if (format === "PDF") {
-        content = `======================================================
+        try {
+          const doc = new jsPDF({
+            orientation: "portrait",
+            unit: "mm",
+            format: "a4"
+          });
+          
+          // Header Background Strip (National Forensic Sciences University deep navy scheme)
+          doc.setFillColor(15, 23, 42); // slate-900 (#0f172a)
+          doc.rect(0, 0, 210, 42, "F");
+          
+          // University Gold/Amber Accent Line
+          doc.setFillColor(180, 141, 45); // Warm gold (#b48d2d)
+          doc.rect(0, 42, 210, 2, "F");
+
+          // Header Text
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("Helvetica", "bold");
+          doc.setFontSize(13);
+          doc.text("NATIONAL FORENSIC SCIENCES UNIVERSITY (NFSU)", 15, 18);
+          
+          doc.setFont("Helvetica", "normal");
+          doc.setFontSize(9.5);
+          doc.setTextColor(180, 141, 45); // Gold text
+          doc.text("DELHI CAMPUS • UNIVERSITY ATTENDANCE MANAGEMENT SYSTEM (UAMS)", 15, 25);
+          
+          doc.setFontSize(8.5);
+          doc.setTextColor(156, 163, 175); // gray-400
+          doc.text(`Official Log Registry Credential • Generated: ${new Date().toLocaleString()}`, 15, 33);
+
+          // Card Background for Student Profile details
+          doc.setFillColor(248, 250, 252); // slate-50
+          doc.setDrawColor(241, 245, 249); // slate-100
+          doc.roundedRect(15, 52, 180, 36, 3, 3, "FD");
+          
+          doc.setFont("Helvetica", "bold");
+          doc.setFontSize(10);
+          doc.setTextColor(30, 41, 59); // slate-800
+          doc.text("STUDENT PROFILE", 20, 60);
+          
+          doc.setFont("Helvetica", "normal");
+          doc.setFontSize(9);
+          doc.text(`Name:               ${studentUser.fullName}`, 20, 68);
+          doc.text(`Enrollment No:   ${studentUser.enrollmentNumber}`, 20, 74);
+          doc.text(`Academic Info:   Semester ${studentUser.semester} / Batch UAMS-U`, 20, 80);
+          
+          // Overall Summary Box inside the profile section
+          doc.setFillColor(224, 242, 254); // light sky-100
+          doc.roundedRect(122, 56, 68, 28, 2, 2, "F");
+          
+          doc.setFont("Helvetica", "bold");
+          doc.setFontSize(8.5);
+          doc.setTextColor(3, 105, 161); // sky-700
+          doc.text("CUMULATIVE ATTENDANCE", 127, 63);
+          
+          doc.setFontSize(18);
+          doc.setTextColor(15, 23, 42); // slate-900
+          doc.text(`${data.overallPercentage}%`, 127, 73);
+          
+          doc.setFontSize(8);
+          const complianceColor = data.statusCategory === "SAFE" ? "#10b981" : data.statusCategory === "WARNING" ? "#f59e0b" : "#ef4444";
+          // jsPDF color setting
+          if (data.statusCategory === "SAFE") {
+            doc.setTextColor(16, 185, 129); // emerald-500
+          } else if (data.statusCategory === "WARNING") {
+            doc.setTextColor(245, 158, 11); // amber-500
+          } else {
+            doc.setTextColor(239, 68, 68); // red-500
+          }
+          doc.text(`STATUS: ${data.statusCategory} COMPLIANCE`, 127, 79);
+
+          // Subject Header Label
+          doc.setFont("Helvetica", "bold");
+          doc.setFontSize(11);
+          doc.setTextColor(15, 23, 42);
+          doc.text("SUBJECT-WISE ATTENDANCE DISPOSITION", 15, 99);
+
+          // Table Header Bar
+          doc.setFillColor(15, 23, 42); // slate-900
+          doc.roundedRect(15, 104, 180, 8, 1, 1, "F");
+          
+          doc.setFont("Helvetica", "bold");
+          doc.setFontSize(8.5);
+          doc.setTextColor(255, 255, 255);
+          doc.text("CODE", 18, 109.5);
+          doc.text("SUBJECT DESCRIPTION", 44, 109.5);
+          doc.text("ATTENDED", 125, 109.5);
+          doc.text("TOTAL LCTS", 150, 109.5);
+          doc.text("PERCENTAGE", 172, 109.5);
+          
+          // Table Rows
+          let currentY = 118;
+          data.subjectStats.forEach((s) => {
+            // Draw secondary row separator
+            doc.setDrawColor(241, 245, 249);
+            doc.line(15, currentY + 3, 195, currentY + 3);
+
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(8.5);
+            doc.setTextColor(15, 23, 42);
+            doc.text(s.subjectCode, 18, currentY);
+            
+            doc.setFont("Helvetica", "normal");
+            doc.setTextColor(71, 85, 105);
+            const subName = s.subjectName.length > 38 ? s.subjectName.substring(0, 35) + "..." : s.subjectName;
+            doc.text(subName, 44, currentY);
+            
+            doc.text(`${s.present} Classes`, 125, currentY);
+            doc.text(`${s.total} Lects`, 150, currentY);
+            
+            const pct = s.percentage;
+            if (pct >= 80) {
+              doc.setTextColor(16, 185, 129); // emerald-500
+            } else if (pct >= 75) {
+              doc.setTextColor(245, 158, 11); // amber-500
+            } else {
+              doc.setTextColor(239, 68, 68); // red-500
+            }
+            doc.setFont("Helvetica", "bold");
+            doc.text(`${s.percentage}%`, 172, currentY);
+            
+            currentY += 10;
+          });
+
+          // Footer Disclaimer and Regulations Info card
+          currentY += 4;
+          doc.setFont("Helvetica", "italic");
+          doc.setFontSize(8);
+          doc.setTextColor(148, 163, 184); // slate-400
+          doc.text("Regulation Note: Students are mandated to maintain at least 80% attendance in each course register for final semester assessments.", 15, currentY);
+          
+          // Secure system fingerprint block
+          doc.setFillColor(248, 250, 252);
+          doc.setDrawColor(226, 232, 240);
+          doc.roundedRect(15, currentY + 6, 180, 20, 2, 2, "FD");
+          
+          doc.setFont("Helvetica", "bold");
+          doc.setFontSize(8);
+          doc.setTextColor(71, 85, 105);
+          doc.text("UAMS SECURE VERIFICATION FOOTPRINT", 20, currentY + 12);
+          
+          doc.setFont("Helvetica", "normal");
+          doc.setFontSize(7.5);
+          doc.setTextColor(120, 113, 108); // warmStone-500
+          doc.text(`Authenticated via cryptographically secure University Administration Nodes. Transaction Ref: DL-SEQ-${data.sequenceNumber ?? 1001}-PASS.`, 20, currentY + 18);
+
+          doc.save(`${title}.pdf`);
+        } catch (pdfErr) {
+          console.error("Failed to generate PDF with jsPDF, falling back:", pdfErr);
+          // Fallback simple plain text
+          const fallbackContent = `======================================================
 NATIONAL FORENSIC SCIENCES UNIVERSITY (NFSU) DELHI
 ======================================================
 Student: ${studentUser.fullName}
 Enrollment No: ${studentUser.enrollmentNumber}
-Semester / Batch: Semester ${studentUser.semester} / SET
-Overall Percentage: ${data.overallPercentage}%
-Status Class: ${data.statusCategory}
-Generated On: ${new Date().toLocaleDateString()}
-------------------------------------------------------
-SUBJECT-WISE SUMMARY:
-` + data.subjectStats.map(s => `- ${s.subjectCode}: ${s.subjectName} | Present: ${s.present}/${s.total} (${s.percentage}%)`).join("\n") + `
-======================================================`;
+Overall Attendance: ${data.overallPercentage}%
+Status: ${data.statusCategory}
+Generated On: ${new Date().toLocaleDateString()}`;
+          const blob = new Blob([fallbackContent], { type: "text/plain" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `${title}.txt`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
       } else {
-        content = "Enrollment Number,Student Name,Subject Code,Subject Name,Classes Present,Classes Absent,Total Classes,Attendance Percentage\n" +
-          data.subjectStats.map(s => `"${studentUser.enrollmentNumber}","${studentUser.fullName}","${s.subjectCode}","${s.subjectName}",${s.present},${s.absent},${s.total},${s.percentage}%`).join("\n");
+        const content = "Enrollment Number,Student Name,Subject Code,Subject Name,Classes Present,Classes Absent,Total Classes,Attendance Percentage\n" +
+          data.subjectStats.map(s => `"${studentUser.enrollmentNumber}","${studentUser.fullName}","${s.subjectCode}","${s.subjectName}",${s.present},${s.absent},${s.total},"${s.percentage}%"`).join("\n");
+        const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${title}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
-
-      const blob = new Blob([content], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${title}.${format === "PDF" ? "pdf" : "xlsx"}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
     }, 1500);
   };
 
   // Student specific notifications filters
-  const stuNotifications = (Array.isArray(allNotifications) ? allNotifications : []).filter(n => n?.message?.includes(studentUser.fullName) || n?.userId === "u-john");
+  const stuNotifications = Array.isArray(allNotifications) ? allNotifications : [];
 
   // ==========================================
   // MOBILE VIEW RENDER BLOCK (FOR FLUTTER APK)
@@ -386,51 +541,96 @@ SUBJECT-WISE SUMMARY:
             </div>
           )}
 
+          {/* TAB 5: ANALYTICS */}
+          {mobileTab === "ANALYTICS" && data && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="bg-white border border-slate-150 rounded-xl p-4 shadow-2xs">
+                <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-2">Subject-wise Attendance (%)</h4>
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data.subjectStats} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="subjectCode" stroke="#94a3b8" fontSize={10} tickLine={false} />
+                      <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                      <Tooltip contentStyle={{ backgroundColor: "#0f172a", borderRadius: "10px", color: "white", fontSize: "11px" }} />
+                      <Bar dataKey="percentage" name="Attendance %" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={25} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-150 rounded-xl p-4 shadow-2xs">
+                <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-2">Academic Monthly Trend (%)</h4>
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data.monthlyStats} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} />
+                      <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+                      <Tooltip contentStyle={{ backgroundColor: "#0f172a", borderRadius: "10px", color: "white", fontSize: "11px" }} />
+                      <Bar dataKey="ratio" name="Average Ratio" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={30} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Floating App Navigation Bar */}
         <div className="fixed bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-2xl flex items-center justify-around z-50 select-none px-6">
           <button 
             onClick={() => setMobileTab("HOME")}
-            className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all ${
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded-xl transition-all ${
               mobileTab === "HOME" ? "text-amber-600 font-bold scale-105" : "text-slate-400 hover:text-slate-600"
             }`}
           >
-            <Home className="w-4.5 h-4.5" />
-            <span className="text-[9px] mt-1 tracking-tight font-sans">Home</span>
+            <Home className="w-4 h-4" />
+            <span className="text-[8px] mt-1 tracking-tight font-sans">Home</span>
           </button>
           
           <button 
             onClick={() => setMobileTab("SUBJECTS")}
-            className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all ${
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded-xl transition-all ${
               mobileTab === "SUBJECTS" ? "text-amber-600 font-bold scale-105" : "text-slate-400 font-medium hover:text-slate-600"
             }`}
           >
-            <BookOpen className="w-4.5 h-4.5" />
-            <span className="text-[9px] mt-1 tracking-tight font-sans">Subjects</span>
+            <BookOpen className="w-4 h-4" />
+            <span className="text-[8px] mt-1 tracking-tight font-sans">Subjects</span>
+          </button>
+
+          <button 
+            onClick={() => setMobileTab("ANALYTICS")}
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded-xl transition-all ${
+              mobileTab === "ANALYTICS" ? "text-amber-600 font-bold scale-105" : "text-slate-400 font-medium hover:text-slate-600"
+            }`}
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span className="text-[8px] mt-1 tracking-tight font-sans">Charts</span>
           </button>
 
           <button 
             onClick={() => setMobileTab("TIMELINE")}
-            className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all ${
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded-xl transition-all ${
               mobileTab === "TIMELINE" ? "text-amber-600 font-bold scale-105" : "text-slate-400 font-medium hover:text-slate-600"
             }`}
           >
-            <History className="w-4.5 h-4.5" />
-            <span className="text-[9px] mt-1 tracking-tight font-sans">Timeline</span>
+            <History className="w-4 h-4" />
+            <span className="text-[8px] mt-1 tracking-tight font-sans">Timeline</span>
           </button>
 
           <button 
             onClick={() => setMobileTab("ALERTS")}
-            className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all relative ${
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded-xl transition-all relative ${
               mobileTab === "ALERTS" ? "text-amber-600 font-bold scale-105" : "text-slate-400 font-medium hover:text-slate-600"
             }`}
           >
             {stuNotifications.length > 0 && (
               <span className="absolute top-2 right-3.5 w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
             )}
-            <Bell className="w-4.5 h-4.5" />
-            <span className="text-[9px] mt-1 tracking-tight font-sans">Alerts</span>
+            <Bell className="w-4 h-4" />
+            <span className="text-[8px] mt-1 tracking-tight font-sans">Alerts</span>
           </button>
         </div>
 
