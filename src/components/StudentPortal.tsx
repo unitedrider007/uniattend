@@ -51,9 +51,79 @@ export default function StudentPortal({
 
   if (loading || !data || !data.subjectStats) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent mb-4"></div>
-        <p className="text-slate-400 font-medium text-xs text-center">Recalculating real-time subject-wise averages...</p>
+      <div className="w-full space-y-6 select-none animate-fade-in">
+        {/* Skeleton Topbar */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-100">
+          <div className="space-y-2">
+            <div className="h-7 w-48 shimmer rounded-lg"></div>
+            <div className="h-4 w-64 bg-slate-50 border border-slate-100 rounded-md py-1 px-2 flex items-center">
+              <div className="h-2 w-full bg-slate-200/50 rounded shimmer"></div>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <div className="h-9 w-28 shimmer rounded-xl"></div>
+            <div className="h-9 w-28 shimmer rounded-xl"></div>
+          </div>
+        </div>
+
+        {/* Skeleton Main Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          {/* Left panel skeleton: Radial details & warning banner */}
+          <div className="md:col-span-4 space-y-6">
+            <div className="border border-slate-100 rounded-2xl p-6 bg-white space-y-5 shadow-xs">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full border border-slate-100 shimmer shrink-0"></div>
+                <div className="space-y-2 flex-1">
+                  <div className="h-3.5 w-16 shimmer rounded-md"></div>
+                  <div className="h-5 w-28 shimmer rounded-lg"></div>
+                  <div className="h-3.5 w-32 shimmer rounded-md"></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Three key stats indicators */}
+            <div className="grid grid-cols-3 gap-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="border border-slate-100 p-4 rounded-xl text-center bg-white space-y-2 shadow-xs">
+                  <div className="mx-auto h-3 w-8 bg-slate-100 rounded mb-1 shimmer"></div>
+                  <div className="mx-auto h-5 w-12 shimmer rounded-md"></div>
+                </div>
+              ))}
+            </div>
+
+            {/* Dummy system information alert */}
+            <div className="border border-slate-100 p-5 rounded-xl bg-slate-50/50 space-y-3">
+              <div className="h-3.5 w-32 bg-slate-200/60 rounded-md shimmer"></div>
+              <div className="h-3 w-full bg-slate-200/40 rounded-md shimmer"></div>
+              <div className="h-3 w-2/3 bg-slate-200/40 rounded-md shimmer"></div>
+            </div>
+          </div>
+
+          {/* Right panel skeleton: Course performances lists */}
+          <div className="md:col-span-8 space-y-4 bg-white border border-slate-100 rounded-2xl p-6 shadow-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="h-4.5 w-36 bg-slate-200/70 rounded-lg shimmer"></div>
+              <div className="h-4 w-16 bg-slate-200/40 rounded-md shimmer"></div>
+            </div>
+            
+            {/* Pulsing Subject card lists */}
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="border border-slate-100 p-4 rounded-xl flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-10 h-10 rounded-lg bg-slate-200/60 shimmer shrink-0"></div>
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 w-2/3 bg-slate-200/60 rounded-md shimmer"></div>
+                    <div className="h-3 w-1/3 bg-slate-100/60 rounded-md shimmer"></div>
+                  </div>
+                </div>
+                <div className="space-y-1 text-right">
+                  <div className="h-4.5 w-12 bg-slate-200/60 rounded-md ml-auto shimmer"></div>
+                  <div className="h-3 w-16 bg-slate-100/60 rounded-md ml-auto shimmer"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -646,11 +716,11 @@ Generated On: ${new Date().toLocaleDateString()}`;
       
       <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-50 rounded-xl border border-indigo-100 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 rounded-xl">
             <User className="w-5 h-5 text-indigo-600" />
           </div>
           <div>
-            <h2 className="text-sm font-extrabold text-slate-800 tracking-tight">Student Dashboard</h2>
+            <h2 className="text-sm font-extrabold text-slate-800 font-display tracking-tight">Student Dashboard</h2>
             <div className="flex items-center gap-2 mt-0.5">
               <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-mono font-bold ${
                 data.statusCategory === "SAFE" ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
@@ -661,17 +731,17 @@ Generated On: ${new Date().toLocaleDateString()}`;
         </div>
         <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => triggerExport("PDF")}
-              disabled={downloadingFormat !== null}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-all text-slate-600 disabled:opacity-50"
+               onClick={() => triggerExport("PDF")}
+               disabled={downloadingFormat !== null}
+               className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-all text-slate-800 disabled:opacity-50"
             >
               <FileText className="w-3.5 h-3.5 text-rose-500" />
               <span>{downloadingFormat === "PDF" ? "Preparing..." : "Export PDF"}</span>
             </button>
             <button
-              onClick={() => triggerExport("EXCEL")}
-              disabled={downloadingFormat !== null}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-all text-slate-600 disabled:opacity-50"
+               onClick={() => triggerExport("EXCEL")}
+               disabled={downloadingFormat !== null}
+               className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-all text-slate-800 disabled:opacity-50"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
               <span>{downloadingFormat === "EXCEL" ? "Preparing..." : "Export Excel"}</span>
@@ -684,8 +754,8 @@ Generated On: ${new Date().toLocaleDateString()}`;
         {/* Metric Card */}
         <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider font-sans block">Overall attendance</span>
-            <span className="text-3xl font-extrabold text-slate-800 tracking-tight mt-1 block">
+            <span className="text-xs text-slate-600 font-semibold uppercase tracking-wider font-sans block">Overall attendance</span>
+            <span className="text-3xl font-extrabold text-slate-800 font-mono tracking-tight mt-1 block">
               {data.overallPercentage}%
             </span>
           </div>
@@ -696,8 +766,8 @@ Generated On: ${new Date().toLocaleDateString()}`;
 
         <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider font-sans block">Total Classes held</span>
-            <span className="text-3xl font-extrabold text-slate-800 tracking-tight mt-1 block">
+            <span className="text-xs text-slate-600 font-semibold uppercase tracking-wider font-sans block">Total Classes held</span>
+            <span className="text-3xl font-extrabold text-slate-800 font-mono tracking-tight mt-1 block">
               {data.totalClasses}
             </span>
           </div>
@@ -708,8 +778,8 @@ Generated On: ${new Date().toLocaleDateString()}`;
 
         <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider font-sans block">Lectures attended</span>
-            <span className="text-3xl font-extrabold text-emerald-700 tracking-tight mt-1 block">
+            <span className="text-xs text-slate-600 font-semibold uppercase tracking-wider font-sans block">Lectures attended</span>
+            <span className="text-3xl font-extrabold text-emerald-700 font-mono tracking-tight mt-1 block">
               {data.presentClasses}
             </span>
           </div>
@@ -720,8 +790,8 @@ Generated On: ${new Date().toLocaleDateString()}`;
 
         <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider font-sans block">Lectures absent</span>
-            <span className="text-3xl font-extrabold text-rose-700 tracking-tight mt-1 block">
+            <span className="text-xs text-slate-600 font-semibold uppercase tracking-wider font-sans block">Lectures absent</span>
+            <span className="text-3xl font-extrabold text-rose-700 font-mono tracking-tight mt-1 block">
               {data.absentClasses}
             </span>
           </div>
@@ -736,8 +806,8 @@ Generated On: ${new Date().toLocaleDateString()}`;
         {/* Subject wise comparison */}
         <div className="lg:col-span-7 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between min-h-[350px]">
           <div className="mb-4">
-            <h3 className="font-extrabold text-slate-800 text-base font-sans tracking-tight">Subject-wise Analytics (%)</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Calculated in real-time across current semester offerings.</p>
+            <h3 className="font-extrabold text-slate-800 text-base font-display tracking-tight">Subject-wise Analytics (%)</h3>
+            <p className="text-xs text-slate-600 mt-0.5">Calculated in real-time across current semester offerings.</p>
           </div>
           
           <div className="flex-1 min-h-[220px]">
@@ -759,8 +829,8 @@ Generated On: ${new Date().toLocaleDateString()}`;
         {/* Monthly Attendance curve */}
         <div className="lg:col-span-5 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between min-h-[350px]">
           <div className="mb-4">
-            <h3 className="font-extrabold text-slate-800 text-base font-sans tracking-tight">Academic Monthly Trend</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Calculated average attendance ratio month-over-month.</p>
+            <h3 className="font-extrabold text-slate-800 text-base font-display tracking-tight">Academic Monthly Trend</h3>
+            <p className="text-xs text-slate-600 mt-0.5">Calculated average attendance ratio month-over-month.</p>
           </div>
 
           <div className="flex-1 min-h-[220px]">
@@ -781,8 +851,8 @@ Generated On: ${new Date().toLocaleDateString()}`;
       <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h3 className="font-extrabold text-slate-800 text-base font-sans tracking-tight">Subject Attendance Records</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Individual lecture tally, present/absent logs, and threshold checks.</p>
+            <h3 className="font-extrabold text-slate-800 text-base font-display tracking-tight">Subject Attendance Records</h3>
+            <p className="text-xs text-slate-600 mt-0.5">Individual lecture tally, present/absent logs, and threshold checks.</p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
@@ -794,14 +864,14 @@ Generated On: ${new Date().toLocaleDateString()}`;
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search subject..."
-                className="pl-9 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium w-full focus:outline-hidden focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                className="pl-9 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold w-full focus:outline-hidden focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 text-slate-800"
               />
             </div>
             {/* Category Select Filter */}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium focus:outline-hidden focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 bg-white"
+              className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-hidden focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 bg-white text-slate-800"
             >
               <option value="ALL">All Categories</option>
               <option value="SAFE">Safe (&ge; 80%)</option>
@@ -811,19 +881,19 @@ Generated On: ${new Date().toLocaleDateString()}`;
           </div>
         </div>
 
-        <div className="divide-y divide-slate-50">
+        <div className="divide-y divide-slate-100">
           {filteredSubjects.length === 0 ? (
-            <div className="text-center p-8 text-slate-400 text-xs font-medium">No subjects fit the criteria.</div>
+            <div className="text-center p-8 text-slate-500 text-xs font-semibold">No subjects fit the criteria.</div>
           ) : (
             filteredSubjects.map((sub) => (
-              <div key={sub.subjectId} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/45 transition-colors">
+              <div key={sub.subjectId} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
                 <div className="flex items-start gap-4">
-                  <div className="p-3 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-xl mt-0.5 font-bold text-xs shrink-0 font-mono">
+                  <div className="p-3 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl mt-0.5 font-bold text-xs shrink-0 font-mono">
                     {sub.subjectCode}
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-800 text-sm">{sub.subjectName}</h4>
-                    <p className="text-xs text-slate-400 mt-0.5">Faculty Contact Office • Regular Lecture Hours</p>
+                    <h4 className="font-bold text-slate-800 text-sm font-display tracking-tight">{sub.subjectName}</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">Faculty Contact Office • Regular Lecture Hours</p>
                     
                     {/* Visual bar tracker */}
                     <div className="mt-3 flex items-center gap-1.5">
@@ -839,16 +909,16 @@ Generated On: ${new Date().toLocaleDateString()}`;
                           style={{ width: `${sub.percentage}%` }}
                         ></div>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-500">{sub.percentage}% completed</span>
+                      <span className="text-[10px] font-bold text-slate-700 font-mono">{sub.percentage}% completed</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-4">
                   <div className="text-left md:text-right">
-                    <span className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold font-sans">Present / Total Lectures</span>
-                    <p className="text-sm font-extrabold text-slate-800 mt-0.5">
-                      {sub.present} <span className="text-slate-400 text-xs font-normal">of</span> {sub.total} classes
+                    <span className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold font-sans">Present / Total Lectures</span>
+                    <p className="text-sm font-extrabold text-slate-800 font-mono mt-0.5">
+                      {sub.present} <span className="text-slate-500 text-xs font-normal font-sans">of</span> {sub.total} classes
                     </p>
                   </div>
 
@@ -868,25 +938,25 @@ Generated On: ${new Date().toLocaleDateString()}`;
         <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden flex flex-col justify-between min-h-[305px]">
           <div>
             <div className="p-6 border-b border-slate-50">
-              <h3 className="font-extrabold text-slate-800 text-xs font-sans tracking-tight">Recent Attendance Ticker</h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">Dates are recorded directly into PostgreSQL with automatic timestamps.</p>
+              <h3 className="font-extrabold text-slate-800 text-xs font-display tracking-tight">Recent Attendance Ticker</h3>
+              <p className="text-[11px] text-slate-550 mt-0.5">Dates are recorded directly into PostgreSQL with automatic timestamps.</p>
             </div>
             <div className="divide-y divide-slate-50">
               {data.recentLogs.slice(0, 5).map((log) => (
                 <div key={log.id} className="px-6 py-3.5 flex items-center justify-between text-xs hover:bg-slate-50/50 transition-all">
                   <div className="flex items-center gap-3">
-                    <Calendar className="w-4 h-4 text-slate-400" />
+                    <Calendar className="w-4 h-4 text-slate-500" />
                     <div>
-                      <span className="font-bold text-slate-700">{log.subjectName}</span>
-                      <span className="text-[10px] text-slate-400 ml-1 font-mono">({log.subjectCode})</span>
+                      <span className="font-bold text-slate-800">{log.subjectName}</span>
+                      <span className="text-[10px] text-slate-500 ml-1 font-mono">({log.subjectCode})</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3.5">
-                    <span className="text-slate-400 font-mono text-[10px]">{log.date}</span>
+                    <span className="text-slate-500 font-mono text-[10px]">{log.date}</span>
                     <span className={`px-2 py-0.5 rounded font-mono text-[9px] font-bold ${
                       log.status === "PRESENT" 
-                        ? "bg-emerald-50 border border-emerald-100 text-emerald-600" 
-                        : "bg-rose-50 border border-rose-100 text-rose-600"
+                        ? "bg-emerald-50 border border-emerald-100 text-emerald-700" 
+                        : "bg-rose-50 border border-rose-100 text-rose-700"
                     }`}>
                       {log.status}
                     </span>
@@ -900,25 +970,25 @@ Generated On: ${new Date().toLocaleDateString()}`;
         {/* Dynamic Inbox Warnings & Updates */}
         <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between min-h-[305px]">
           <div>
-            <h3 className="font-extrabold text-slate-800 text-xs font-sans tracking-tight flex items-center gap-2">
-              <Bell className="w-4 h-4 text-indigo-500" />
+            <h3 className="font-extrabold text-slate-800 text-xs font-display tracking-tight flex items-center gap-2">
+              <Bell className="w-4 h-4 text-indigo-600" />
               Personal Notification Inbox
             </h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">Triggered automatically on attendance modifications & alerts.</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Triggered automatically on attendance modifications & alerts.</p>
             
             <div className="mt-4 space-y-3">
               {stuNotifications.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 text-xs">No recent alert triggers.</div>
+                <div className="text-center py-8 text-slate-500 text-xs">No recent alert triggers.</div>
               ) : (
                 stuNotifications.map((not) => (
-                  <div key={not.id} className="p-3 bg-slate-50/80 border border-slate-100 rounded-xl text-left">
+                  <div key={not.id} className="p-4 bg-slate-50/50 border border-slate-100/70 rounded-xl text-left">
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="font-bold text-slate-700">{not.title}</span>
-                      <span className="text-slate-400 font-mono text-[10px]">
+                      <span className="font-bold text-slate-800">{not.title}</span>
+                      <span className="text-slate-500 font-mono text-[10px]">
                         {new Date(not.createdAt).toLocaleDateString()}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">{not.message}</p>
+                    <p className="text-xs text-slate-650 mt-1 leading-relaxed">{not.message}</p>
                   </div>
                 ))
               )}

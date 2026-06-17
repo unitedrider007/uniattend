@@ -360,15 +360,83 @@ export default function AdminPortal() {
 
   if (loading || !analytics || !analytics.totals) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-605 border-t-transparent mb-4"></div>
-        <p className="text-slate-400 font-medium text-sm text-center">Contacting PostgreSQL connection state pool...</p>
+      <div className="w-full space-y-6 select-none animate-fade-in">
+        {/* Admin Nav Tab Bar Skeleton */}
+        <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg border border-slate-100 shimmer"></div>
+            <div className="space-y-1.5">
+              <div className="h-4 w-32 shimmer rounded-md"></div>
+              <div className="h-3 w-48 bg-slate-100/50 rounded-sm shimmer"></div>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-8 w-20 shimmer rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+
+        {/* Totals Metric cards (4 columns) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white border border-slate-100 p-5 rounded-2xl space-y-3 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="h-3 w-16 bg-slate-100/70 rounded-md shimmer"></div>
+                <div className="w-6 h-6 rounded-lg border border-slate-50 shimmer"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-6 w-12 shimmer rounded-lg"></div>
+                <div className="h-3 w-24 bg-slate-100/50 rounded-md shimmer"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Section Body Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Filters column / side widget */}
+          <div className="lg:col-span-4 bg-white border border-slate-100 p-5 rounded-2xl space-y-4 shadow-xs">
+            <div className="h-4 w-28 bg-slate-200/80 rounded-md shimmer"></div>
+            <div className="space-y-3 pt-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="space-y-1.5">
+                  <div className="h-3 w-16 bg-slate-100/70 rounded-sm shimmer"></div>
+                  <div className="h-9 w-full bg-slate-200/40 rounded-xl shimmer"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* List data rows column */}
+          <div className="lg:col-span-8 bg-white border border-slate-100 p-6 rounded-2xl space-y-4 shadow-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="h-4 w-32 bg-slate-200/80 rounded-lg shimmer"></div>
+              <div className="h-3.5 w-16 bg-slate-100/70 rounded-md shimmer"></div>
+            </div>
+            
+            {/* Rows placeholders */}
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="py-3 border-b border-slate-100/70 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-slate-200/50 shrink-0 shimmer"></div>
+                  <div className="space-y-2 flex-1 min-w-0">
+                    <div className="h-3.5 w-40 bg-slate-200/70 rounded-md shimmer"></div>
+                    <div className="h-3 w-28 bg-slate-100/60 rounded-md shimmer"></div>
+                  </div>
+                </div>
+                <div className="h-4 w-12 bg-slate-200/60 rounded-md shrink-0 shimmer"></div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <>
+      <div className="space-y-6 animate-fade-in pb-24 md:pb-0">
       
       {/* Admin Central Nav Tab Bar */}
       <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-4">
@@ -377,40 +445,40 @@ export default function AdminPortal() {
             <ShieldAlert className="w-5 h-5 text-amber-500" />
           </div>
           <div>
-            <h2 className="text-sm font-extrabold text-slate-800 tracking-tight">University Management Portal</h2>
-            <p className="text-[10px] text-slate-400 font-medium font-sans">Role Authorized: Global Administrator Authority</p>
+            <h2 className="text-sm font-extrabold text-slate-800 font-display tracking-tight">University Management Portal</h2>
+            <p className="text-[10px] text-slate-500 font-bold font-sans">Role Authorized: Global Administrator Authority</p>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-1 bg-slate-50 p-1 rounded-xl border border-slate-205">
+        <div className="hidden md:flex flex-wrap gap-1 bg-slate-50 p-1 rounded-xl border border-slate-205">
           <button
             onClick={() => setActiveTab("DASHBOARD")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "DASHBOARD" ? "bg-slate-900 text-white shadow-xs" : "text-slate-600 hover:text-slate-950"}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "DASHBOARD" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
           >
             Analytics
           </button>
           <button
             onClick={() => setActiveTab("DEPARTMENTS")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "DEPARTMENTS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-600 hover:text-slate-950"}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "DEPARTMENTS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
           >
             Departments
           </button>
           <button
             onClick={() => setActiveTab("TEACHERS")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "TEACHERS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-600 hover:text-slate-950"}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "TEACHERS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
           >
             Teachers
           </button>
           <button
             id="tab-admin-students"
             onClick={() => setActiveTab("STUDENTS")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "STUDENTS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-600 hover:text-slate-950"}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "STUDENTS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
           >
             Students
           </button>
           <button
             onClick={() => setActiveTab("REPORTS")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "REPORTS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-600 hover:text-slate-950"}`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "REPORTS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
           >
             Defaulter Reports
           </button>
@@ -422,24 +490,24 @@ export default function AdminPortal() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans">Total Enrollments</span>
-              <strong className="text-2xl font-extrabold text-slate-800 tracking-tight block mt-1">{analytics.totals.totalStudents}</strong>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Total Enrollments</span>
+              <strong className="text-2xl font-extrabold text-slate-800 font-mono tracking-tight block mt-1">{analytics.totals.totalStudents}</strong>
             </div>
             <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans">Registered Teachers</span>
-              <strong className="text-2xl font-extrabold text-slate-800 tracking-tight block mt-1">{analytics.totals.totalTeachers}</strong>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Registered Teachers</span>
+              <strong className="text-2xl font-extrabold text-slate-800 font-mono tracking-tight block mt-1">{analytics.totals.totalTeachers}</strong>
             </div>
             <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans">Active Classes Mapped</span>
-              <strong className="text-2xl font-extrabold text-slate-800 tracking-tight block mt-1">{analytics.totals.totalSubjects}</strong>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Active Classes Mapped</span>
+              <strong className="text-2xl font-extrabold text-slate-800 font-mono tracking-tight block mt-1">{analytics.totals.totalSubjects}</strong>
             </div>
             <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans">Total Departments</span>
-              <strong className="text-2xl font-extrabold text-slate-800 tracking-tight block mt-1">{analytics.totals.totalDepartments}</strong>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Total Departments</span>
+              <strong className="text-2xl font-extrabold text-slate-800 font-mono tracking-tight block mt-1">{analytics.totals.totalDepartments}</strong>
             </div>
             <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-sans">Today's Presence Ratio</span>
-              <strong className="text-2xl font-extrabold text-indigo-700 tracking-tight block mt-1">{analytics.totals.todayAttendanceRatio}%</strong>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Today's Presence Ratio</span>
+              <strong className="text-2xl font-extrabold text-indigo-700 font-mono tracking-tight block mt-1">{analytics.totals.todayAttendanceRatio}%</strong>
             </div>
           </div>
 
@@ -447,8 +515,8 @@ export default function AdminPortal() {
             {/* Dept averages bar */}
             <div className="lg:col-span-7 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm min-h-[350px] flex flex-col justify-between">
               <div>
-                <h3 className="font-extrabold text-slate-800 text-sm font-sans tracking-tight">Department-wise Averages (%)</h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">Rolling average attendance index computed by department.</p>
+                <h3 className="font-extrabold text-slate-800 text-sm font-display tracking-tight">Department-wise Averages (%)</h3>
+                <p className="text-[11px] text-slate-550 mt-0.5">Rolling average attendance index computed by department.</p>
               </div>
 
               <div className="flex-1 min-h-[220px] mt-4">
@@ -467,8 +535,8 @@ export default function AdminPortal() {
             {/* Semester-wise analytics */}
             <div className="lg:col-span-5 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm min-h-[350px] flex flex-col justify-between">
               <div>
-                <h3 className="font-extrabold text-slate-800 text-sm font-sans tracking-tight">Active Semester averages (%)</h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">Average overall attendance calculated dynamically over semesters.</p>
+                <h3 className="font-extrabold text-slate-800 text-sm font-display tracking-tight">Active Semester averages (%)</h3>
+                <p className="text-[11px] text-slate-550 mt-0.5">Average overall attendance calculated dynamically over semesters.</p>
               </div>
 
               <div className="flex-1 min-h-[220px] mt-4">
@@ -489,18 +557,18 @@ export default function AdminPortal() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-2xl">
               <strong className="text-[11px] uppercase tracking-widest text-emerald-800 font-sans font-bold">Safe Tier Roster (&ge;80%)</strong>
-              <p className="text-3xl font-extrabold text-emerald-900 mt-2">{analytics.defaulters.safeCount} students</p>
-              <p className="text-xs text-emerald-700/80 mt-1">These student profiles satisfy minimum academic threshold criteria.</p>
+              <p className="text-3xl font-extrabold text-emerald-950 font-mono mt-2">{analytics.defaulters.safeCount} students</p>
+              <p className="text-xs text-emerald-800 mt-1">These student profiles satisfy minimum academic threshold criteria.</p>
             </div>
             <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl">
-              <strong className="text-[11px] uppercase tracking-widest text-amber-800 font-sans font-bold">Warning Tier Roster (65%-80%)</strong>
-              <p className="text-3xl font-extrabold text-amber-900 mt-2">{analytics.defaulters.warningCount} students</p>
-              <p className="text-xs text-amber-700/80 mt-1">Flagged automatically. Caution warning banners populated on dashboards.</p>
+              <strong className="text-[11px] uppercase tracking-widest text-amber-805 font-sans font-bold">Warning Tier Roster (65%-80%)</strong>
+              <p className="text-3xl font-extrabold text-amber-950 font-mono mt-2">{analytics.defaulters.warningCount} students</p>
+              <p className="text-xs text-amber-800 mt-1">Flagged automatically. Caution warning banners populated on dashboards.</p>
             </div>
             <div className="p-6 bg-rose-50 border border-rose-100 rounded-2xl">
-              <strong className="text-[11px] uppercase tracking-widest text-rose-800 font-sans font-bold">Critical Defaulter Tier (&lt;60%)</strong>
-              <p className="text-3xl font-extrabold text-rose-900 mt-2">{analytics.defaulters.criticalCount} students</p>
-              <p className="text-xs text-rose-700/80 mt-1">Mandatorily barred. Require immediate academic counseling meeting.</p>
+              <strong className="text-[11px] uppercase tracking-widest text-rose-805 font-sans font-bold">Critical Defaulter Tier (&lt;60%)</strong>
+              <p className="text-3xl font-extrabold text-rose-950 font-mono mt-2">{analytics.defaulters.criticalCount} students</p>
+              <p className="text-xs text-rose-800 mt-1">Mandatorily barred. Require immediate academic counseling meeting.</p>
             </div>
           </div>
         </div>
@@ -511,7 +579,7 @@ export default function AdminPortal() {
         <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden p-6 space-y-6 animate-fade-in">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-slate-800 text-base font-sans tracking-tight flex items-center gap-2">
+              <h3 className="font-extrabold text-slate-800 text-base font-display tracking-tight flex items-center gap-2">
                 <Layers className="w-5 h-5 text-indigo-600" />
                 Department Management
               </h3>
@@ -852,8 +920,8 @@ export default function AdminPortal() {
         <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6 space-y-6 animate-fade-in">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-slate-800 text-base font-sans tracking-tight">Active Faculty Directory</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Control employee ID parameters, department associations, and teacher profiles.</p>
+              <h3 className="font-extrabold text-slate-800 text-base font-display tracking-tight">Active Faculty Directory</h3>
+              <p className="text-xs text-slate-600 mt-0.5">Control employee ID parameters, department associations, and teacher profiles.</p>
             </div>
             <button
               onClick={() => {
@@ -1067,8 +1135,8 @@ export default function AdminPortal() {
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h3 className="font-extrabold text-slate-800 text-base font-sans tracking-tight">Active Student Directory</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Enroll new individual students or run batch bulk CSV loaders directly.</p>
+              <h3 className="font-extrabold text-slate-800 text-base font-display tracking-tight">Active Student Directory</h3>
+              <p className="text-xs text-slate-600 mt-0.5">Enroll new individual students or run batch bulk CSV loaders directly.</p>
             </div>
             
             <div className="flex gap-2">
@@ -1355,8 +1423,8 @@ export default function AdminPortal() {
       {activeTab === "REPORTS" && (
         <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6 overflow-hidden space-y-6 animate-fade-in">
           <div>
-            <h3 className="font-extrabold text-slate-800 text-base font-sans tracking-tight">University Defaulter Register & Reports</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Filter across department rosters to extract students with sub-80% threshold metrics.</p>
+            <h3 className="font-extrabold text-slate-800 text-base font-display tracking-tight">University Defaulter Register & Reports</h3>
+            <p className="text-xs text-slate-600 mt-0.5">Filter across department rosters to extract students with sub-80% threshold metrics.</p>
           </div>
 
           {/* Filtering row */}
@@ -1452,6 +1520,67 @@ export default function AdminPortal() {
         </div>
       )}
 
-    </div>
+      </div>
+
+      {/* Mobile Sticky bottom navigation bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-2xl flex items-center justify-around z-50 select-none px-2">
+        <button
+          onClick={() => setActiveTab("DASHBOARD")}
+          className={`flex flex-col items-center justify-center flex-1 h-14 rounded-xl transition-all duration-200 ${
+            activeTab === "DASHBOARD"
+              ? "text-amber-600 font-bold scale-105"
+              : "text-slate-400 font-medium hover:text-slate-600"
+          }`}
+        >
+          <TrendingUp className="w-4 h-4 mb-0.5" />
+          <span className="text-[8px] tracking-tight font-sans">Analytics</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("DEPARTMENTS")}
+          className={`flex flex-col items-center justify-center flex-1 h-14 rounded-xl transition-all duration-200 ${
+            activeTab === "DEPARTMENTS"
+              ? "text-amber-600 font-bold scale-105"
+              : "text-slate-400 font-medium hover:text-slate-600"
+          }`}
+        >
+          <Layers className="w-4 h-4 mb-0.5" />
+          <span className="text-[8px] tracking-tight font-sans">Depts</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("TEACHERS")}
+          className={`flex flex-col items-center justify-center flex-1 h-14 rounded-xl transition-all duration-200 ${
+            activeTab === "TEACHERS"
+              ? "text-amber-600 font-bold scale-105"
+              : "text-slate-400 font-medium hover:text-slate-600"
+          }`}
+        >
+          <UserCheck className="w-4 h-4 mb-0.5" />
+          <span className="text-[8px] tracking-tight font-sans">Teachers</span>
+        </button>
+        <button
+          id="mobile-tab-admin-students"
+          onClick={() => setActiveTab("STUDENTS")}
+          className={`flex flex-col items-center justify-center flex-1 h-14 rounded-xl transition-all duration-200 ${
+            activeTab === "STUDENTS"
+              ? "text-amber-600 font-bold scale-105"
+              : "text-slate-400 font-medium hover:text-slate-600"
+          }`}
+        >
+          <Users className="w-4 h-4 mb-0.5" />
+          <span className="text-[8px] tracking-tight font-sans">Students</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("REPORTS")}
+          className={`flex flex-col items-center justify-center flex-1 h-14 rounded-xl transition-all duration-200 ${
+            activeTab === "REPORTS"
+              ? "text-amber-600 font-bold scale-105"
+              : "text-slate-400 font-medium hover:text-slate-600"
+          }`}
+        >
+          <ClipboardList className="w-4 h-4 mb-0.5" />
+          <span className="text-[8px] tracking-tight font-sans">Reports</span>
+        </button>
+      </div>
+    </>
   );
 }

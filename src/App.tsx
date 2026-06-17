@@ -75,6 +75,7 @@ export default function App() {
   const [errorLogin, setErrorLogin] = useState("");
   const [isMobileView, setIsMobileView] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Password Policy States
   const [currentPassForm, setCurrentPassForm] = useState("");
@@ -141,6 +142,7 @@ export default function App() {
   const handleAuthSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorLogin("");
+    setIsLoggingIn(true);
 
     fetch("/api/auth/login", {
       method: "POST",
@@ -159,9 +161,11 @@ export default function App() {
       }
       setCurrentUser(body.user);
       setErrorLogin("");
+      setIsLoggingIn(false);
     })
     .catch((err) => {
       setErrorLogin(err.message || "Central Directory SSO authentication handshake failed.");
+      setIsLoggingIn(false);
     });
   };
 
@@ -637,6 +641,30 @@ Academic DevOps Center © 2026`;
              DELHI CAMPUS • OFFICIAL SECURE CLIENT INTERCONNECT
           </p>
         </footer>
+      )}
+
+      {/* Gateway Handshake Loading Screen */}
+      {isLoggingIn && (
+        <div id="uams-sso-gateway-handshake" className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/75 backdrop-blur-md transition-all duration-300">
+          <div className="bg-white border border-slate-200/80 rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center text-center animate-fade-in">
+            <div className="relative flex items-center justify-center mb-6">
+              <div className="absolute inset-0 rounded-full bg-[#1b305a]/5 animate-ping"></div>
+              <div className="relative p-3 bg-slate-50 rounded-2xl border border-slate-200 shadow-md">
+                <img src="/nfsu-logo.png" alt="NFSU Logo" className="w-16 h-16 object-contain" />
+              </div>
+            </div>
+            <p className="text-[9.5px] font-bold text-[#b48d2d] font-mono tracking-widest uppercase mb-1">
+              Gateway Handshake Secure
+            </p>
+            <h4 className="font-extrabold text-slate-800 text-sm">Authenticating Directory Access...</h4>
+            <p className="text-slate-400 text-[11px] mt-2 leading-relaxed max-w-xs font-sans">
+              Verifying security tokens with National Forensic Sciences University SSO and sealing a secure session. Please wait...
+            </p>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-6 relative">
+              <div className="bg-[#b48d2d] h-full rounded-full animate-pulse transition-all duration-500" style={{ width: "65%" }}></div>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

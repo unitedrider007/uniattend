@@ -538,9 +538,65 @@ export default function TeacherPortal({
 
   if (loading || !analytics || analytics.classesConducted === undefined) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent mb-4"></div>
-        <p className="text-slate-400 font-medium text-xs text-center">Syncing teacher dashboard charts & indexes...</p>
+      <div className="w-full space-y-6 select-none bg-slate-50/50 p-5 rounded-3xl animate-fade-in">
+        {/* Topbar/Title Skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
+          <div className="space-y-2">
+            <div className="h-7 w-56 bg-slate-200/80 rounded-lg shimmer"></div>
+            <div className="h-4 w-72 bg-slate-100/50 rounded-md shimmer"></div>
+          </div>
+          <div className="h-9 w-32 bg-slate-200/80 rounded-xl shimmer"></div>
+        </div>
+
+        {/* 4 Stats Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white border border-slate-100 p-5 rounded-2xl space-y-3 shadow-xs">
+              <div className="flex justify-between items-center">
+                <div className="h-3 w-16 bg-slate-100/70 rounded-md shimmer"></div>
+                <div className="w-6 h-6 rounded-lg bg-slate-200/50 shimmer"></div>
+              </div>
+              <div className="h-6 w-12 bg-slate-200/80 rounded-lg shimmer"></div>
+              <div className="h-3 w-20 bg-slate-100/60 rounded-md shimmer"></div>
+            </div>
+          ))}
+        </div>
+
+        {/* Major Columns Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Main Action Side Block */}
+          <div className="lg:col-span-8 bg-white border border-slate-100 rounded-2xl p-6 space-y-4 shadow-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="h-4 w-48 bg-slate-200/80 rounded-lg shimmer"></div>
+              <div className="h-3.5 w-16 bg-slate-100/65 rounded-md shimmer"></div>
+            </div>
+            
+            {/* Table or Card Row place-holders */}
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="border border-slate-100 p-4 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="h-4.5 w-36 bg-slate-200/75 rounded-md shimmer"></div>
+                  <div className="h-4 w-12 bg-slate-200/65 rounded-md shimmer"></div>
+                </div>
+                <div className="h-3 w-full bg-slate-100/60 rounded-sm shimmer"></div>
+                <div className="h-3 w-3/4 bg-slate-100/60 rounded-sm shimmer"></div>
+              </div>
+            ))}
+          </div>
+
+          {/* Right column: Announcements and active updates */}
+          <div className="lg:col-span-4 bg-white border border-slate-100 rounded-2xl p-6 space-y-4 shadow-xs">
+            <div className="h-4.5 w-32 bg-slate-200/80 rounded-lg shimmer"></div>
+            
+            {[1, 2].map((i) => (
+              <div key={i} className="p-4 bg-slate-50/50 border border-slate-100 rounded-xl space-y-2">
+                <div className="h-3.5 w-24 bg-slate-200/75 rounded-md shimmer"></div>
+                <div className="h-3 w-full bg-slate-100/60 rounded-sm shimmer"></div>
+                <div className="h-3 w-2/3 bg-slate-100/60 rounded-sm shimmer"></div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -1662,8 +1718,8 @@ export default function TeacherPortal({
             <ClipboardList className="w-5 h-5 text-indigo-600" />
           </div>
           <div>
-            <h2 className="text-sm font-extrabold text-slate-800 tracking-tight">Faculty Dashboard</h2>
-            <p className="text-[10px] text-slate-400 font-medium font-sans">Active Session</p>
+            <h2 className="text-sm font-extrabold text-slate-800 font-display tracking-tight">Faculty Dashboard</h2>
+            <p className="text-[10px] text-slate-500 font-bold font-sans">Active Session</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-1 bg-slate-50 p-1 rounded-xl border border-slate-205">
@@ -1715,8 +1771,8 @@ export default function TeacherPortal({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center justify-between">
               <div>
-                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider font-sans block">Assigned Classes Held</span>
-                <span className="text-3xl font-extrabold text-slate-800 tracking-tight mt-1 block">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-sans block">Assigned Classes Held</span>
+                <span className="text-3xl font-extrabold text-slate-800 font-mono tracking-tight mt-1 block">
                   {analytics.classesConducted}
                 </span>
               </div>
@@ -1727,20 +1783,20 @@ export default function TeacherPortal({
 
             <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center justify-between">
               <div>
-                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider font-sans block">Average Attendance Ratio</span>
-                <span className="text-3xl font-extrabold text-emerald-805 tracking-tight mt-1 block">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-sans block">Average Attendance Ratio</span>
+                <span className="text-3xl font-extrabold text-emerald-800 font-mono tracking-tight mt-1 block">
                   {analytics.averageAttendance}%
                 </span>
               </div>
-              <div className="p-3.5 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl shadow-xs">
+              <div className="p-3.5 bg-emerald-50 border border-emerald-100 text-emerald-750 rounded-2xl shadow-xs">
                 <Award className="w-6 h-6" />
               </div>
             </div>
 
             <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center justify-between">
               <div>
-                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider font-sans block">My Assigned Subjects</span>
-                <span className="text-3xl font-extrabold text-slate-800 tracking-tight mt-1 block">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-sans block">My Assigned Subjects</span>
+                <span className="text-3xl font-extrabold text-slate-800 font-mono tracking-tight mt-1 block">
                   {subjects.length}
                 </span>
               </div>
@@ -1751,12 +1807,12 @@ export default function TeacherPortal({
 
             <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center justify-between">
               <div>
-                <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider font-sans block">Defaulters flagged (&lt;80%)</span>
-                <span className="text-3xl font-extrabold text-slate-805 tracking-tight mt-1 block">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-sans block">Defaulters flagged (&lt;80%)</span>
+                <span className="text-3xl font-extrabold text-rose-800 font-mono tracking-tight mt-1 block">
                   {analytics.defaulterCount}
                 </span>
               </div>
-              <div className="p-3.5 bg-rose-50 border border-rose-100 text-rose-700 rounded-2xl shadow-xs">
+              <div className="p-3.5 bg-rose-50 border border-rose-100 text-rose-750 rounded-2xl shadow-xs">
                 <UserX className="w-6 h-6" />
               </div>
             </div>
@@ -1766,8 +1822,8 @@ export default function TeacherPortal({
             {/* Real-time Subject Average Chart */}
             <div className="lg:col-span-7 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between min-h-[350px]">
               <div>
-                <h3 className="font-extrabold text-slate-800 text-base font-sans tracking-tight">Assigned Subjects Performance</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Average overall attendance collected across active subjects.</p>
+                <h3 className="font-extrabold text-slate-800 text-base font-display tracking-tight">Assigned Subjects Performance</h3>
+                <p className="text-xs text-slate-600 mt-0.5">Average overall attendance collected across active subjects.</p>
               </div>
 
               <div className="flex-1 min-h-[220px] mt-4">
