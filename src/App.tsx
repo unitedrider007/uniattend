@@ -357,8 +357,8 @@ Academic DevOps Center © 2026`;
   if (bootState !== "ready") {
     return (
       <GlobalErrorBoundary>
-        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-slate-100 select-none font-sans">
-          <div className="bg-slate-900/95 border border-slate-800/80 rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center text-center animate-fade-in relative backdrop-blur-md">
+        <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 text-center text-slate-800 select-none font-sans">
+          <div className="bg-white border border-slate-200/80 rounded-3xl p-8 max-w-sm w-full mx-4 shadow-xl flex flex-col items-center text-center animate-fade-in relative backdrop-blur-md">
             
             {/* Visual Accent Top Bar */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-[#b48d2d] rounded-t-3xl"></div>
@@ -366,15 +366,15 @@ Academic DevOps Center © 2026`;
             {/* Icon / Brand Animation Section */}
             <div className="relative flex items-center justify-center mb-6 mt-2">
               <div className="absolute inset-0 rounded-full bg-amber-500/5 animate-ping"></div>
-              <div className="relative p-4 bg-slate-800/60 rounded-2xl border border-slate-700/50 shadow-md">
+              <div className="relative p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-xs">
                 {bootState === "booting" && (
-                  <BookOpen className="w-10 h-10 text-amber-500 animate-pulse" />
+                  <BookOpen className="w-10 h-10 text-amber-600 animate-pulse" />
                 )}
                 {bootState === "re-authenticating" && (
-                  <Shield className="w-10 h-10 text-amber-500 animate-bounce" />
+                  <Shield className="w-10 h-10 text-amber-600 animate-bounce" />
                 )}
                 {bootState === "fetching_catalogs" && (
-                  <GraduationCap className="w-10 h-10 text-amber-500 animate-pulse" />
+                  <GraduationCap className="w-10 h-10 text-amber-600 animate-pulse" />
                 )}
                 {bootState === "error" && (
                   <AlertOctagon className="w-10 h-10 text-rose-500" />
@@ -383,21 +383,21 @@ Academic DevOps Center © 2026`;
             </div>
 
             {/* Text details for status indicator */}
-            <p className="text-[9.5px] font-bold text-[#b48d2d] font-mono tracking-widest uppercase mb-1.5">
+            <p className="text-[10px] font-bold text-[#b48d2d] font-mono tracking-widest uppercase mb-1.5">
               {bootState === "booting" && "Gateway Boot Sequence"}
               {bootState === "re-authenticating" && "SSO Security Handshake"}
               {bootState === "fetching_catalogs" && "Data Catalog Synced"}
               {bootState === "error" && "Gateway Session Error"}
             </p>
 
-            <h4 className="font-extrabold text-white text-md tracking-tight">
+            <h4 className="font-extrabold text-slate-900 text-sm tracking-tight">
               {bootState === "booting" && "Initializing Gatekeeper..."}
               {bootState === "re-authenticating" && "Verifying Credentials..."}
               {bootState === "fetching_catalogs" && "Caching Central Directory..."}
               {bootState === "error" && "Sign-In Handshake Failed"}
             </h4>
 
-            <p className="text-slate-400 text-xs mt-2.5 leading-relaxed max-w-xs font-sans">
+            <p className="text-slate-500 text-xs mt-2.5 leading-relaxed max-w-xs font-sans">
               {bootState === "booting" && "Reading localized security credentials and preparing secure runtime environment..."}
               {bootState === "re-authenticating" && "Re-authenticating cryptographically signed session keys with the University Central Directory..."}
               {bootState === "fetching_catalogs" && "Handshaking with scholastic databases to query core enrollment details and classroom profiles..."}
@@ -406,9 +406,9 @@ Academic DevOps Center © 2026`;
 
             {/* Dynamic visual indicator for the active state */}
             {bootState !== "error" ? (
-              <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden mt-6 relative">
+              <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden mt-6 relative">
                 <div 
-                  className="bg-amber-500 h-full rounded-full transition-all duration-700 ease-in-out" 
+                  className="bg-amber-600 h-full rounded-full transition-all duration-700 ease-in-out" 
                   style={{ 
                     width: 
                       bootState === "booting" ? "25%" :
@@ -421,7 +421,7 @@ Academic DevOps Center © 2026`;
               <div className="w-full space-y-2 mt-6">
                 <button
                   onClick={() => performStartupHandshake()}
-                  className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs tracking-wide transition-all shadow-md select-none cursor-pointer"
+                  className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs tracking-wide transition-all shadow-md select-none cursor-pointer"
                 >
                   Retry Connection Handshake
                 </button>
@@ -433,7 +433,7 @@ Academic DevOps Center © 2026`;
                     setCurrentUser(null);
                     setBootState("ready");
                   }}
-                  className="w-full py-2 px-4 bg-transparent hover:bg-slate-800 text-slate-400 font-bold rounded-xl text-[10.5px] tracking-wide transition-all uppercase"
+                  className="w-full py-2 px-4 bg-transparent hover:bg-slate-50 text-slate-500 font-bold rounded-xl text-[10.5px] tracking-wide transition-all uppercase cursor-pointer"
                 >
                   Force Gatekeeper Clean Exit
                 </button>
