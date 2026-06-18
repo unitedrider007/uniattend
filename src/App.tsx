@@ -61,7 +61,14 @@ class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBound
 
 export default function App() {
   // Authentication & Responsive View States
-  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [currentUser, setCurrentUser] = useState<any | null>(() => {
+    try {
+      const saved = localStorage.getItem("uams_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [emailForm, setEmailForm] = useState("");
   const [passwordForm, setPasswordForm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -72,7 +79,15 @@ export default function App() {
 
   // Advanced Startup State Machine (Booting -> Re-authenticating -> Fetching Catalogs -> Ready)
   type BootState = 'booting' | 're-authenticating' | 'fetching_catalogs' | 'ready' | 'error';
-  const [bootState, setBootState] = useState<BootState>('booting');
+  const [bootState, setBootState] = useState<BootState>(() => {
+    try {
+      const savedUser = localStorage.getItem("uams_user");
+      const savedRefreshToken = localStorage.getItem("uams_refresh_token");
+      return (savedUser && savedRefreshToken) ? 'ready' : 'booting';
+    } catch {
+      return 'booting';
+    }
+  });
   const [bootError, setBootError] = useState("");
 
   // Password Policy States
@@ -114,19 +129,29 @@ export default function App() {
 
   // Run the silent re-authentication state machine on application mount
   const performStartupHandshake = async () => {
-    setBootState('booting');
-    setBootError("");
-
     const savedUser = localStorage.getItem("uams_user");
     const savedRefreshToken = localStorage.getItem("uams_refresh_token");
 
     if (!savedUser || !savedRefreshToken) {
-      // No active session in storage, bypass to standard login screen
+      // No active session in storage, bypass to standard login screen immediately
       setBootState('ready');
       return;
     }
 
-    setBootState('re-authenticating');
+    // Determine if we already have the profile locally to perform a completely silent verify
+    let isSilent = false;
+    try {
+      const parsed = JSON.parse(savedUser);
+      if (parsed && parsed.id) {
+        isSilent = true;
+      }
+    } catch (e) {}
+
+    if (!isSilent) {
+      setBootState('re-authenticating');
+    }
+    setBootError("");
+
     try {
       const res = await fetch("/api/auth/refresh", {
         method: "POST",
@@ -151,7 +176,9 @@ export default function App() {
         }
 
         // Successfully authenticated! Now pull directories
-        setBootState('fetching_catalogs');
+        if (!isSilent) {
+          setBootState('fetching_catalogs');
+        }
         try {
           const [allTeachers, allStudents] = await Promise.all([
             fetch("/api/teachers").then(r => r.ok ? r.json() : Promise.reject(r)),
@@ -175,14 +202,24 @@ export default function App() {
         setBootState('ready');
       } else {
         // This is a 500, 502, 503, or database/network gateway issue. Do NOT delete credentials!
-        // Instead, raise an exception to set the boot status to 'error' and display the Retry connection button.
-        throw new Error(`SSO Gateway system issue (code ${res.status}). Readying network connection...`);
+        // If it was silent, let the dashboard remain active using cached/offline memory.
+        if (isSilent) {
+          setBootState('ready');
+        } else {
+          // If not silent or user manually clicked retry, trigger boot status error so they can retry.
+          throw new Error(`SSO Gateway system issue (code ${res.status}). Readying network connection...`);
+        }
       }
     } catch (err: any) {
       console.error("Gateway re-authentication handshake failed:", err);
-      // Give them an explicit failed status screen with details and a manual Retry check
-      setBootError(err.message || "SSO network handshake failed. Please check your connection.");
-      setBootState('error');
+      if (isSilent) {
+        // Let them enjoy the offline/cached views instead of blocking with a persistent crash overlay
+        setBootState('ready');
+      } else {
+        // Give them an explicit failed status screen with details and a manual Retry check
+        setBootError(err.message || "SSO network handshake failed. Please check your connection.");
+        setBootState('error');
+      }
     }
   };
 
