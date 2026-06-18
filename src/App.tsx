@@ -165,14 +165,18 @@ export default function App() {
           // Handled gracefully so the user is not completely blocked if database is loading
           setBootState('ready');
         }
-      } else {
-        // Handle failed handshakes or expired credentials
+      } else if (res.status === 401 || res.status === 403) {
+        // Handle failed handshakes or expired credentials (the refresh token is definitely invalid or expired)
         console.warn("Stored re-authentication token expired. Re-routing back to secure login.");
         localStorage.removeItem("uams_access_token");
         localStorage.removeItem("uams_refresh_token");
         localStorage.removeItem("uams_user");
         setCurrentUser(null);
         setBootState('ready');
+      } else {
+        // This is a 500, 502, 503, or database/network gateway issue. Do NOT delete credentials!
+        // Instead, raise an exception to set the boot status to 'error' and display the Retry connection button.
+        throw new Error(`SSO Gateway system issue (code ${res.status}). Readying network connection...`);
       }
     } catch (err: any) {
       console.error("Gateway re-authentication handshake failed:", err);

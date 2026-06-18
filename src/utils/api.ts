@@ -28,8 +28,8 @@ export async function uamsFetch(input: RequestInfo | URL, init?: RequestInit): P
 
   const response = await fetch(input, updatedInit);
 
-  // If unauthorized (token expired), try silent JWT token refresh
-  if (response.status === 401) {
+  // If unauthorized (token expired) or forbidden (expired token/credentials), try silent JWT token refresh
+  if (response.status === 401 || response.status === 403) {
     const urlString = typeof input === "string" 
       ? input 
       : (input instanceof URL ? input.toString() : (input as any).url || "");
