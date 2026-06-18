@@ -226,6 +226,7 @@ app.post("/api/auth/login", loginLimiter, validateRequest(loginSchema), async (r
 
     res.json({
       accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -273,7 +274,13 @@ app.post("/api/auth/change-password", authenticateToken, async (req: Authenticat
 });
 
 app.post("/api/auth/refresh", loginLimiter, async (req, res) => {
-  const token = req.cookies ? req.cookies["uams_refresh_token"] : undefined;
+  let token = req.cookies ? req.cookies["uams_refresh_token"] : undefined;
+  if (!token && req.body) {
+    token = req.body.refreshToken;
+  }
+  if (!token) {
+    token = req.headers["x-refresh-token"] as string | undefined;
+  }
 
   if (!token) {
     return res.status(401).json({ message: "Refresh token is required." });
@@ -343,6 +350,7 @@ app.post("/api/auth/refresh", loginLimiter, async (req, res) => {
 
       res.json({
         accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
         user: {
           id: user.id,
           email: user.email,

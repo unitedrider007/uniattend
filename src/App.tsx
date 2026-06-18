@@ -168,6 +168,9 @@ export default function App() {
       if (body.accessToken) {
         localStorage.setItem("uams_access_token", body.accessToken);
       }
+      if (body.refreshToken) {
+        localStorage.setItem("uams_refresh_token", body.refreshToken);
+      }
       setCurrentUser(body.user);
       setErrorLogin("");
       setIsLoggingIn(false);
@@ -180,6 +183,7 @@ export default function App() {
 
   const handleSignOut = () => {
     localStorage.removeItem("uams_access_token");
+    localStorage.removeItem("uams_refresh_token");
     setCurrentUser(null);
     setEmailForm("");
     setPasswordForm("");
