@@ -24,6 +24,7 @@ export default function AdminPortal() {
   const [studentsSummary, setStudentsSummary] = useState<Record<string, any>>({});
   const [analytics, setAnalytics] = useState<AdminSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorObj, setErrorObj] = useState<string | null>(null);
 
   // Forms overlay triggers
   const [selectedDept, setSelectedDept] = useState<Department | null>(null);
@@ -61,14 +62,15 @@ export default function AdminPortal() {
   // Reload Database collections from custom Express backend API
   const refreshDatabase = () => {
     setLoading(true);
+    setErrorObj(null);
     Promise.all([
-      fetch("/api/departments").then(res => res.ok ? res.json() : Promise.reject(res)),
-      fetch("/api/batches").then(res => res.ok ? res.json() : Promise.reject(res)),
-      fetch("/api/subjects").then(res => res.ok ? res.json() : Promise.reject(res)),
-      fetch("/api/teachers").then(res => res.ok ? res.json() : Promise.reject(res)),
-      fetch("/api/students").then(res => res.ok ? res.json() : Promise.reject(res)),
-      fetch("/api/analytics/admin-summary").then(res => res.ok ? res.json() : Promise.reject(res)),
-      fetch("/api/analytics/students-summary").then(res => res.ok ? res.json() : Promise.reject(res))
+      fetch("/api/departments").then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to load official departments directory."))),
+      fetch("/api/batches").then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to load class batches list."))),
+      fetch("/api/subjects").then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to load subjects directory."))),
+      fetch("/api/teachers").then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to load faculty listings."))),
+      fetch("/api/students").then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to load student listings."))),
+      fetch("/api/analytics/admin-summary").then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to compile administrator overview summary."))),
+      fetch("/api/analytics/students-summary").then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to compile student metrics.")))
     ])
     .then(([allDepts, allBatches, allSubjects, allTeachers, allStudents, stats, summary]) => {
       setDepartments(allDepts);
@@ -82,6 +84,7 @@ export default function AdminPortal() {
     })
     .catch((err) => {
       console.error("Failed to query full stack relational models", err);
+      setErrorObj(err.message || "Institutional Central Directory login SSO handshake failed.");
       setLoading(false);
     });
   };
@@ -357,6 +360,24 @@ export default function AdminPortal() {
       case "CRITICAL": return "border-rose-100 text-rose-700 bg-rose-50";
     }
   };
+
+  if (errorObj) {
+    return (
+      <div className="min-h-[400px] flex flex-col items-center justify-center p-6 bg-white border border-slate-200/80 rounded-3xl shadow-xs text-center animate-fade-in select-none">
+        <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mb-3">
+          <AlertTriangle className="w-6 h-6" />
+        </div>
+        <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">Unable to Load Admin Dashboard</h3>
+        <p className="text-slate-500 text-xs mt-1.5 max-w-sm leading-relaxed">{errorObj}</p>
+        <button
+          onClick={refreshDatabase}
+          className="mt-4.5 px-4.5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold shadow-xs hover:bg-slate-800 transition-all cursor-pointer"
+        >
+          Retry Connection
+        </button>
+      </div>
+    );
+  }
 
   if (loading || !analytics || !analytics.totals) {
     return (

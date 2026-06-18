@@ -23,20 +23,22 @@ export default function StudentPortal({
 }: StudentPortalProps) {
   const [data, setData] = useState<StudentAnalyticsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorObj, setErrorObj] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
 
   // Mobile App state management
-  const [mobileTab, setMobileTab] = useState<"HOME" | "SUBJECTS" | "TIMELINE" | "ALERTS" | "ANALYTICS">("HOME");
+  const [mobileTab, setMobileTab] = useState<"HOME" | "SUBJECTS" | "TIMELINE" | "ALERTS" | "ANALYTICS" >("HOME");
   const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(null);
 
   // Fetch current student's real-time calculated analytics from Express API (full-stack integration)
-  useEffect(() => {
+  const loadStudentData = () => {
     setLoading(true);
+    setErrorObj(null);
     fetch(`/api/analytics/student/${studentUser.id}`)
       .then((res) => {
-        if (!res.ok) throw new Error("Network status issue");
+        if (!res.ok) throw new Error("Our records directory returned a system issue. Please check again soon.");
         return res.json();
       })
       .then((analytics) => {
@@ -45,9 +47,32 @@ export default function StudentPortal({
       })
       .catch((err) => {
         console.error("Failed to load student analytics", err);
+        setErrorObj(err.message || "Institutional Central Directory login SSO handshake failed.");
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    loadStudentData();
   }, [studentUser.id]);
+
+  if (errorObj) {
+    return (
+      <div className="min-h-[400px] flex flex-col items-center justify-center p-6 bg-white border border-slate-200/80 rounded-3xl shadow-xs text-center animate-fade-in select-none">
+        <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mb-3">
+          <AlertOctagon className="w-6 h-6" />
+        </div>
+        <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">Unable to Load Academic Analytics</h3>
+        <p className="text-slate-500 text-xs mt-1.5 max-w-sm leading-relaxed">{errorObj}</p>
+        <button
+          onClick={loadStudentData}
+          className="mt-4.5 px-4.5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold shadow-xs hover:bg-slate-800 transition-all cursor-pointer"
+        >
+          Retry Connection
+        </button>
+      </div>
+    );
+  }
 
   if (loading || !data || !data.subjectStats) {
     return (

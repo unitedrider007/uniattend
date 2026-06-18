@@ -34,6 +34,7 @@ export default function TeacherPortal({
   const [analytics, setAnalytics] = useState<TeacherAnalyticsResponse | null>(null);
   const [auditLogs, setAuditLogs] = useState<AttendanceAudit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorObj, setErrorObj] = useState<string | null>(null);
 
   // Lists for substitutions and announcements
   const [allTeachers, setTeachers] = useState<Teacher[]>([]);
@@ -99,18 +100,19 @@ export default function TeacherPortal({
   // Trigger reloading of core Teacher datasets
   const loadTeacherData = () => {
     setLoading(true);
+    setErrorObj(null);
     
     Promise.all([
-      fetch("/api/subjects").then(res => res.ok ? res.json() : []).catch(() => []),
-      fetch("/api/batches").then(res => res.ok ? res.json() : []).catch(() => []),
-      fetch(`/api/analytics/teacher/${teacherUser.id}`).then(res => res.ok ? res.json() : null).catch(() => null),
-      fetch("/api/attendance/audit-logs").then(res => res.ok ? res.json() : []).catch(() => []),
-      fetch("/api/teachers").then(res => res.ok ? res.json() : []).catch(() => []),
-      fetch("/api/departments").then(res => res.ok ? res.json() : []).catch(() => []),
-      fetch(`/api/teachers/${teacherUser.id}/active-substitutions`).then(res => res.ok ? res.json() : []).catch(() => []),
-      fetch(`/api/announcements/teacher/${teacherUser.id}`).then(res => res.ok ? res.json() : []).catch(() => []),
-      fetch(`/api/teachers/${teacherUser.id}/substitute-subjects`).then(res => res.ok ? res.json() : []).catch(() => []),
-      fetch(`/api/teachers/${teacherUser.id}/sessions`).then(res => res.ok ? res.json() : []).catch(() => [])
+      fetch("/api/subjects").then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to load official subjects index."))),
+      fetch("/api/batches").then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to load class batches."))),
+      fetch(`/api/analytics/teacher/${teacherUser.id}`).then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to compile faculty calculations."))),
+      fetch("/api/attendance/audit-logs").then(res => res.ok ? res.json() : []),
+      fetch("/api/teachers").then(res => res.ok ? res.json() : []),
+      fetch("/api/departments").then(res => res.ok ? res.json() : []),
+      fetch(`/api/teachers/${teacherUser.id}/active-substitutions`).then(res => res.ok ? res.json() : []),
+      fetch(`/api/announcements/teacher/${teacherUser.id}`).then(res => res.ok ? res.json() : []),
+      fetch(`/api/teachers/${teacherUser.id}/substitute-subjects`).then(res => res.ok ? res.json() : []),
+      fetch(`/api/teachers/${teacherUser.id}/sessions`).then(res => res.ok ? res.json() : [])
     ])
     .then(([allSubjects, allBatches, teacherStats, allAuditTrail, teachersList, departmentsList, activeSubs, annList, subSubjects, sessionsList]) => {
       const myAssignedSubjects = allSubjects.filter((s: Subject) => s.assignedTeacherId === teacherUser.id);
@@ -139,6 +141,7 @@ export default function TeacherPortal({
     })
     .catch((err) => {
       console.error("Failed to load full-stack teacher profile records", err);
+      setErrorObj(err.message || "Institutional Central Directory login SSO handshake failed.");
       setLoading(false);
     });
   };
@@ -535,6 +538,24 @@ export default function TeacherPortal({
 
   const reportSubject = subjects.find(s => s.id === reportSubjectId);
   const validReportBatches = reportSubject ? batches.filter(b => b.departmentId === reportSubject.departmentId && b.semester === reportSubject.semester) : batches;
+
+  if (errorObj) {
+    return (
+      <div className="min-h-[400px] flex flex-col items-center justify-center p-6 bg-white border border-slate-200/80 rounded-3xl shadow-xs text-center animate-fade-in select-none">
+        <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mb-3">
+          <AlertTriangle className="w-6 h-6" />
+        </div>
+        <h3 className="font-extrabold text-slate-800 text-sm tracking-tight">Unable to Load Faculty Dashboard</h3>
+        <p className="text-slate-500 text-xs mt-1.5 max-w-sm leading-relaxed">{errorObj}</p>
+        <button
+          onClick={loadTeacherData}
+          className="mt-4.5 px-4.5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold shadow-xs hover:bg-slate-800 transition-all cursor-pointer"
+        >
+          Retry Connection
+        </button>
+      </div>
+    );
+  }
 
   if (loading || !analytics || analytics.classesConducted === undefined) {
     return (

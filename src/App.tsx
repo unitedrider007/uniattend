@@ -138,6 +138,15 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // Listen for global custom "uams-unauthorized" events to trigger clean redirection on session expiry
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      handleSignOut();
+    };
+    window.addEventListener("uams-unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("uams-unauthorized", handleUnauthorized);
+  }, []);
+
   // Execute database authenticated sign-in via Express API
   const handleAuthSubmit = (e: React.FormEvent) => {
     e.preventDefault();
