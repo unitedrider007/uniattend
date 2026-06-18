@@ -196,12 +196,12 @@ app.post("/api/auth/login", loginLimiter, validateRequest(loginSchema), async (r
     const refreshToken = jwt.sign(
       { userId: user.id },
       JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "30d" }
     );
 
     // Save SHA-256 hashed refresh token to securely persist sessions in DB
     const hashedRefreshToken = crypto.createHash("sha256").update(refreshToken).digest("hex");
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await pool.query(
       "INSERT INTO refresh_tokens (token, user_id, expires_at) VALUES ($1, $2, $3) ON CONFLICT (token) DO UPDATE SET expires_at = EXCLUDED.expires_at",
       [hashedRefreshToken, user.id, expiresAt]
@@ -221,7 +221,7 @@ app.post("/api/auth/login", loginLimiter, validateRequest(loginSchema), async (r
       httpOnly: true,
       secure: true,
       sameSite: sameSiteConfig,
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      maxAge: 30 * 24 * 60 * 60 * 1000
     });
 
     res.json({
@@ -311,6 +311,15 @@ app.post("/api/auth/refresh", loginLimiter, async (req, res) => {
       }
       const user = userRes.rows[0];
 
+      let profileInfo: any = {};
+      if (user.role === "STUDENT" && user.target_id) {
+        const sRes = await pool.query("SELECT * FROM students WHERE id = $1", [user.target_id]);
+        profileInfo = mapStu(sRes.rows[0]) || {};
+      } else if (user.role === "TEACHER" && user.target_id) {
+        const tRes = await pool.query("SELECT * FROM teachers WHERE id = $1", [user.target_id]);
+        profileInfo = mapTeach(tRes.rows[0]) || {};
+      }
+
       const newAccessToken = jwt.sign(
         { userId: user.id, email: user.email, role: user.role, targetId: user.target_id },
         JWT_SECRET,
@@ -319,7 +328,7 @@ app.post("/api/auth/refresh", loginLimiter, async (req, res) => {
       const newRefreshToken = jwt.sign(
         { userId: user.id },
         JWT_SECRET,
-        { expiresIn: "7d" }
+        { expiresIn: "30d" }
       );
 
       // Save hashed version of rotated refresh token
@@ -327,7 +336,7 @@ app.post("/api/auth/refresh", loginLimiter, async (req, res) => {
 
       // Rotate Refresh Tokens (Security best practice)
       await pool.query("DELETE FROM refresh_tokens WHERE token = $1", [hashedToken]);
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       await pool.query(
         "INSERT INTO refresh_tokens (token, user_id, expires_at) VALUES ($1, $2, $3)",
         [hashedNewRefreshToken, user.id, expiresAt]
@@ -345,7 +354,7 @@ app.post("/api/auth/refresh", loginLimiter, async (req, res) => {
         httpOnly: true,
         secure: true,
         sameSite: sameSiteConfig,
-        maxAge: 7 * 24 * 60 * 60 * 1000
+        maxAge: 30 * 24 * 60 * 60 * 1000
       });
 
       res.json({
@@ -355,7 +364,9 @@ app.post("/api/auth/refresh", loginLimiter, async (req, res) => {
           id: user.id,
           email: user.email,
           role: user.role,
-          targetId: user.target_id
+          targetId: user.target_id,
+          mustChangePassword: user.must_change_password || false,
+          profile: profileInfo
         }
       });
     });

@@ -61,14 +61,7 @@ class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBound
 
 export default function App() {
   // Authentication & Responsive View States
-  const [currentUser, setCurrentUser] = useState<any | null>(() => {
-    try {
-      const saved = localStorage.getItem("uams_user");
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [emailForm, setEmailForm] = useState("");
   const [passwordForm, setPasswordForm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -76,6 +69,11 @@ export default function App() {
   const [isMobileView, setIsMobileView] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Advanced Startup State Machine (Booting -> Re-authenticating -> Fetching Catalogs -> Ready)
+  type BootState = 'booting' | 're-authenticating' | 'fetching_catalogs' | 'ready' | 'error';
+  const [bootState, setBootState] = useState<BootState>('booting');
+  const [bootError, setBootError] = useState("");
 
   // Password Policy States
   const [currentPassForm, setCurrentPassForm] = useState("");
@@ -114,11 +112,85 @@ export default function App() {
     });
   };
 
+  // Run the silent re-authentication state machine on application mount
+  const performStartupHandshake = async () => {
+    setBootState('booting');
+    setBootError("");
+
+    const savedUser = localStorage.getItem("uams_user");
+    const savedRefreshToken = localStorage.getItem("uams_refresh_token");
+
+    if (!savedUser || !savedRefreshToken) {
+      // No active session in storage, bypass to standard login screen
+      setBootState('ready');
+      return;
+    }
+
+    setBootState('re-authenticating');
+    try {
+      const res = await fetch("/api/auth/refresh", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Refresh-Token": savedRefreshToken
+        },
+        body: JSON.stringify({ refreshToken: savedRefreshToken })
+      });
+
+      if (res.ok) {
+        const body = await res.json();
+        if (body.accessToken) {
+          localStorage.setItem("uams_access_token", body.accessToken);
+        }
+        if (body.refreshToken) {
+          localStorage.setItem("uams_refresh_token", body.refreshToken);
+        }
+        if (body.user) {
+          localStorage.setItem("uams_user", JSON.stringify(body.user));
+          setCurrentUser(body.user);
+        }
+
+        // Successfully authenticated! Now pull directories
+        setBootState('fetching_catalogs');
+        try {
+          const [allTeachers, allStudents] = await Promise.all([
+            fetch("/api/teachers").then(r => r.ok ? r.json() : Promise.reject(r)),
+            fetch("/api/students").then(r => r.ok ? r.json() : Promise.reject(r))
+          ]);
+          setTeachersList(allTeachers);
+          setStudentsList(allStudents);
+          setBootState('ready');
+        } catch (catalogErr) {
+          console.error("NFSU server catalog lookup stalled:", catalogErr);
+          // Handled gracefully so the user is not completely blocked if database is loading
+          setBootState('ready');
+        }
+      } else {
+        // Handle failed handshakes or expired credentials
+        console.warn("Stored re-authentication token expired. Re-routing back to secure login.");
+        localStorage.removeItem("uams_access_token");
+        localStorage.removeItem("uams_refresh_token");
+        localStorage.removeItem("uams_user");
+        setCurrentUser(null);
+        setBootState('ready');
+      }
+    } catch (err: any) {
+      console.error("Gateway re-authentication handshake failed:", err);
+      // Give them an explicit failed status screen with details and a manual Retry check
+      setBootError(err.message || "SSO network handshake failed. Please check your connection.");
+      setBootState('error');
+    }
+  };
+
   useEffect(() => {
-    if (currentUser) {
+    performStartupHandshake();
+  }, []);
+
+  useEffect(() => {
+    if (currentUser && bootState === 'ready') {
       loadBaseCatalogs();
     }
-  }, [currentUser]);
+  }, [currentUser, bootState]);
 
   // Synchronize notifications list for active logged-in accounts
   useEffect(() => {
@@ -145,6 +217,18 @@ export default function App() {
     };
     window.addEventListener("uams-unauthorized", handleUnauthorized);
     return () => window.removeEventListener("uams-unauthorized", handleUnauthorized);
+  }, []);
+
+  // Listen for background token refreshes to keep React state fully synchronized
+  useEffect(() => {
+    const handleRefreshed = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        setCurrentUser(customEvent.detail);
+      }
+    };
+    window.addEventListener("uams-token-refreshed", handleRefreshed);
+    return () => window.removeEventListener("uams-token-refreshed", handleRefreshed);
   }, []);
 
   // Execute database authenticated sign-in via Express API
@@ -269,6 +353,97 @@ Academic DevOps Center © 2026`;
     link.click();
     document.body.removeChild(link);
   };
+
+  if (bootState !== "ready") {
+    return (
+      <GlobalErrorBoundary>
+        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-slate-100 select-none font-sans">
+          <div className="bg-slate-900/95 border border-slate-800/80 rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl flex flex-col items-center text-center animate-fade-in relative backdrop-blur-md">
+            
+            {/* Visual Accent Top Bar */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-[#b48d2d] rounded-t-3xl"></div>
+
+            {/* Icon / Brand Animation Section */}
+            <div className="relative flex items-center justify-center mb-6 mt-2">
+              <div className="absolute inset-0 rounded-full bg-amber-500/5 animate-ping"></div>
+              <div className="relative p-4 bg-slate-800/60 rounded-2xl border border-slate-700/50 shadow-md">
+                {bootState === "booting" && (
+                  <BookOpen className="w-10 h-10 text-amber-500 animate-pulse" />
+                )}
+                {bootState === "re-authenticating" && (
+                  <Shield className="w-10 h-10 text-amber-500 animate-bounce" />
+                )}
+                {bootState === "fetching_catalogs" && (
+                  <GraduationCap className="w-10 h-10 text-amber-500 animate-pulse" />
+                )}
+                {bootState === "error" && (
+                  <AlertOctagon className="w-10 h-10 text-rose-500" />
+                )}
+              </div>
+            </div>
+
+            {/* Text details for status indicator */}
+            <p className="text-[9.5px] font-bold text-[#b48d2d] font-mono tracking-widest uppercase mb-1.5">
+              {bootState === "booting" && "Gateway Boot Sequence"}
+              {bootState === "re-authenticating" && "SSO Security Handshake"}
+              {bootState === "fetching_catalogs" && "Data Catalog Synced"}
+              {bootState === "error" && "Gateway Session Error"}
+            </p>
+
+            <h4 className="font-extrabold text-white text-md tracking-tight">
+              {bootState === "booting" && "Initializing Gatekeeper..."}
+              {bootState === "re-authenticating" && "Verifying Credentials..."}
+              {bootState === "fetching_catalogs" && "Caching Central Directory..."}
+              {bootState === "error" && "Sign-In Handshake Failed"}
+            </h4>
+
+            <p className="text-slate-400 text-xs mt-2.5 leading-relaxed max-w-xs font-sans">
+              {bootState === "booting" && "Reading localized security credentials and preparing secure runtime environment..."}
+              {bootState === "re-authenticating" && "Re-authenticating cryptographically signed session keys with the University Central Directory..."}
+              {bootState === "fetching_catalogs" && "Handshaking with scholastic databases to query core enrollment details and classroom profiles..."}
+              {bootState === "error" && (bootError || "The Delhi campus network nodes are currently stagnant or unreachable. HANDSHAKE_TIMEOUT.")}
+            </p>
+
+            {/* Dynamic visual indicator for the active state */}
+            {bootState !== "error" ? (
+              <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden mt-6 relative">
+                <div 
+                  className="bg-amber-500 h-full rounded-full transition-all duration-700 ease-in-out" 
+                  style={{ 
+                    width: 
+                      bootState === "booting" ? "25%" :
+                      bootState === "re-authenticating" ? "60%" :
+                      bootState === "fetching_catalogs" ? "95%" : "10%"
+                  }}
+                ></div>
+              </div>
+            ) : (
+              <div className="w-full space-y-2 mt-6">
+                <button
+                  onClick={() => performStartupHandshake()}
+                  className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs tracking-wide transition-all shadow-md select-none cursor-pointer"
+                >
+                  Retry Connection Handshake
+                </button>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem("uams_access_token");
+                    localStorage.removeItem("uams_refresh_token");
+                    localStorage.removeItem("uams_user");
+                    setCurrentUser(null);
+                    setBootState("ready");
+                  }}
+                  className="w-full py-2 px-4 bg-transparent hover:bg-slate-800 text-slate-400 font-bold rounded-xl text-[10.5px] tracking-wide transition-all uppercase"
+                >
+                  Force Gatekeeper Clean Exit
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </GlobalErrorBoundary>
+    );
+  }
 
   return (
     <GlobalErrorBoundary>

@@ -74,6 +74,9 @@ export async function uamsFetch(input: RequestInfo | URL, init?: RequestInit): P
             }
             if (body.user) {
               localStorage.setItem("uams_user", JSON.stringify(body.user));
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("uams-token-refreshed", { detail: body.user }));
+              }
             }
 
             const freshToken = body.accessToken;
