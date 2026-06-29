@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { jsPDF } from "jspdf";
 import { StudentAnalyticsResponse, Student } from "../types";
-import { uamsFetch as fetch } from "../utils/api";
+import { studentService } from "../services/studentService";
 import { 
   User, CheckCircle, AlertTriangle, AlertOctagon, Calendar, 
   BookOpen, FolderDown, ArrowUpRight, Search, FileSpreadsheet, FileText, Bell,
@@ -29,25 +29,34 @@ export default function StudentPortal({
   const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
 
   // Mobile App state management
-  const [mobileTab, setMobileTab] = useState<"HOME" | "SUBJECTS" | "TIMELINE" | "ALERTS" | "ANALYTICS" >("HOME");
+  const [mobileTab, setMobileTab] = useState<"HOME" | "SUBJECTS" | "TIMELINE" | "ALERTS" | "ANALYTICS" | "TIMETABLE">("HOME");
   const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(null);
+  const [timetable, setTimetable] = useState<any[]>([]);
+
+  // Fetch current student's weekly timetable from Express API
+  useEffect(() => {
+    studentService.getTimetable(studentUser.id)
+      .then(data => {
+        setTimetable(data);
+      })
+      .catch(err => {
+        console.error("Failed to query student schedule:", err);
+        setTimetable([]);
+      });
+  }, [studentUser.id]);
 
   // Fetch current student's real-time calculated analytics from Express API (full-stack integration)
   const loadStudentData = () => {
     setLoading(true);
     setErrorObj(null);
-    fetch(`/api/analytics/student/${studentUser.id}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Our records directory returned a system issue. Please check again soon.");
-        return res.json();
-      })
+    studentService.getAnalytics(studentUser.id)
       .then((analytics) => {
         setData(analytics);
         setLoading(false);
       })
-      .catch((err) => {
+      .catch((err: any) => {
         console.error("Failed to load student analytics", err);
-        setErrorObj(err.message || "Institutional Central Directory login SSO handshake failed.");
+        setErrorObj(err.message || "Our records directory returned a system issue. Please check again soon.");
         setLoading(false);
       });
   };
@@ -671,6 +680,59 @@ Generated On: ${new Date().toLocaleDateString()}`;
             </div>
           )}
 
+          {/* TAB 6: TIMETABLE */}
+          {mobileTab === "TIMETABLE" && (
+            <div className="space-y-4 animate-fade-in px-4">
+              <div className="bg-white border border-slate-150 rounded-xl p-4 shadow-2xs">
+                <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-1 flex items-center gap-1.5 text-amber-700">
+                  <Calendar className="w-4 h-4 text-amber-600" />
+                  <span>My Lecture Timetable</span>
+                </h4>
+                <p className="text-[10px] text-slate-500">Weekly schedule of scheduled courses.</p>
+              </div>
+
+              <div className="space-y-4">
+                {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((day) => {
+                  const slotsForDay = timetable.filter(
+                    t => t.dayOfWeek.toLowerCase() === day.toLowerCase()
+                  );
+
+                  return (
+                    <div key={day} className="bg-white border border-slate-150 rounded-xl p-4 shadow-2xs">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+                        <span className="font-bold text-slate-800 text-xs">{day}</span>
+                        <span className="px-1.5 py-0.5 bg-slate-100 rounded-md text-[9px] font-mono text-slate-500 font-bold">
+                          {slotsForDay.length} Lectures
+                        </span>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {slotsForDay.length === 0 ? (
+                          <div className="py-2 text-center text-slate-400 text-[10px] italic">No lectures mapped.</div>
+                        ) : (
+                          slotsForDay.map(slot => (
+                            <div key={slot.id} className="p-2.5 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-between">
+                              <div className="space-y-0.5">
+                                <h5 className="font-bold text-slate-800 text-[11px]">{slot.subjectCode}: {slot.subjectName}</h5>
+                                <div className="flex items-center gap-2 text-[9px] text-slate-500">
+                                  <span>👤 {slot.teacherName}</span>
+                                  {slot.classroom && <span>• 📍 Room {slot.classroom}</span>}
+                                </div>
+                              </div>
+                              <span className="text-[9px] font-mono font-bold bg-indigo-50 text-indigo-650 px-1.5 py-0.5 rounded text-right whitespace-nowrap shrink-0">
+                                {slot.startTime} - {slot.endTime}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Floating App Navigation Bar */}
@@ -713,6 +775,16 @@ Generated On: ${new Date().toLocaleDateString()}`;
           >
             <History className="w-4 h-4" />
             <span className="text-[8px] mt-1 tracking-tight font-sans">Timeline</span>
+          </button>
+
+          <button 
+            onClick={() => setMobileTab("TIMETABLE")}
+            className={`flex flex-col items-center justify-center w-12 h-14 rounded-xl transition-all ${
+              mobileTab === "TIMETABLE" ? "text-amber-600 font-bold scale-105" : "text-slate-400 font-medium hover:text-slate-600"
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            <span className="text-[8px] mt-1 tracking-tight font-sans">Timetable</span>
           </button>
 
           <button 
@@ -869,6 +941,76 @@ Generated On: ${new Date().toLocaleDateString()}`;
               </BarChart>
             </ResponsiveContainer>
           </div>
+        </div>
+      </div>
+
+      {/* WEEKLY TIMETABLE SCHEDULE BOARD */}
+      <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h3 className="font-extrabold text-slate-800 text-base font-display tracking-tight flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-indigo-650" />
+              Academic Weekly Timetable Schedule
+            </h3>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Overview of scheduled classes, assigned classrooms, and instruction faculty assigned to your batch.
+            </p>
+          </div>
+          <span className="px-2.5 py-1 bg-indigo-50 border border-indigo-100/60 rounded-xl text-xs font-bold text-indigo-750 font-mono">
+            {timetable.length} Lectures Total
+          </span>
+        </div>
+
+        {/* Days Columns */}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((day) => {
+            const slotsForDay = timetable.filter(
+              t => t.dayOfWeek.toLowerCase() === day.toLowerCase()
+            );
+
+            return (
+              <div key={day} className="bg-slate-50/50 border border-slate-150 rounded-xl p-3 flex flex-col min-h-[180px]">
+                <div className="pb-1.5 border-b border-slate-205 mb-2.5 flex items-center justify-between">
+                  <span className="font-extrabold text-slate-800 text-xs font-display">{day}</span>
+                  <span className="px-1.5 py-0.5 bg-slate-200/50 text-slate-600 rounded text-[9px] font-mono font-bold">
+                    {slotsForDay.length}
+                  </span>
+                </div>
+
+                <div className="space-y-2 flex-1">
+                  {slotsForDay.length === 0 ? (
+                    <div className="h-full flex items-center justify-center border border-dashed border-slate-200 rounded-lg p-3 bg-white/30">
+                      <span className="text-[10px] text-slate-400 font-medium italic text-center">No classes</span>
+                    </div>
+                  ) : (
+                    slotsForDay.map((slot) => (
+                      <div key={slot.id} className="bg-white border border-slate-100 rounded-lg p-2.5 shadow-2xs hover:border-indigo-400/50 transition-all">
+                        <div className="space-y-1">
+                          <span className="px-1 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[9px] font-mono font-bold block w-fit">
+                            {slot.startTime} - {slot.endTime}
+                          </span>
+                          <h4 className="font-bold text-slate-850 text-[10.5px] leading-tight">
+                            {slot.subjectCode}
+                          </h4>
+                          <p className="text-[10px] text-slate-600 font-medium truncate">
+                            {slot.subjectName}
+                          </p>
+                          <div className="text-[9px] text-slate-500 pt-1 border-t border-slate-50 space-y-0.5">
+                            <p className="truncate">👤 {slot.teacherName}</p>
+                            {slot.classroom && (
+                              <p className="font-mono bg-slate-100/55 text-slate-600 px-1 py-0.5 rounded text-[8px] w-fit">
+                                📍 Room {slot.classroom}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

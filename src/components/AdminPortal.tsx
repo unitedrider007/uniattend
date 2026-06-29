@@ -12,8 +12,12 @@ import {
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area } from "recharts";
 
 export default function AdminPortal() {
-  // Tabs Navigation: "DASHBOARD" | "DEPARTMENTS" | "BATCHES_SUBJECTS" | "TEACHERS" | "STUDENTS" | "REPORTS"
-  const [activeTab, setActiveTab] = useState<"DASHBOARD" | "DEPARTMENTS" | "BATCHES_SUBJECTS" | "TEACHERS" | "STUDENTS" | "REPORTS">("DASHBOARD");
+  // Tabs Navigation
+  const [activeTab, setActiveTab] = useState<"DASHBOARD" | "DEPARTMENTS" | "BATCHES_SUBJECTS" | "TEACHERS" | "STUDENTS" | "REPORTS" | "TIMETABLE">("DASHBOARD");
+
+  // Custom views for HOD vs Director portals
+  const [portalView, setPortalView] = useState<"HOD" | "DIRECTOR">("HOD");
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   // Core collections
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -25,6 +29,23 @@ export default function AdminPortal() {
   const [analytics, setAnalytics] = useState<AdminSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorObj, setErrorObj] = useState<string | null>(null);
+
+  // Timetable scheduling state
+  const [timetable, setTimetable] = useState<any[]>([]);
+  const [showTimetableModal, setShowTimetableModal] = useState(false);
+  const [timetableForm, setTimetableForm] = useState({
+    id: "",
+    batchId: "",
+    subjectId: "",
+    teacherId: "",
+    dayOfWeek: "Monday",
+    startTime: "09:00",
+    endTime: "10:00",
+    classroom: ""
+  });
+  const [timetableFilterBatch, setTimetableFilterBatch] = useState("ALL");
+  const [draggedSlotId, setDraggedSlotId] = useState<string | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
 
   // Forms overlay triggers
   const [selectedDept, setSelectedDept] = useState<Department | null>(null);
@@ -70,9 +91,11 @@ export default function AdminPortal() {
       fetch("/api/teachers").then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to load faculty listings."))),
       fetch("/api/students").then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to load student listings."))),
       fetch("/api/analytics/admin-summary").then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to compile administrator overview summary."))),
-      fetch("/api/analytics/students-summary").then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to compile student metrics.")))
+      fetch("/api/analytics/students-summary").then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to compile student metrics."))),
+      fetch("/api/timetable").then(res => res.ok ? res.json() : []),
+      fetch("/api/attendance/audit-logs").then(res => res.ok ? res.json() : [])
     ])
-    .then(([allDepts, allBatches, allSubjects, allTeachers, allStudents, stats, summary]) => {
+    .then(([allDepts, allBatches, allSubjects, allTeachers, allStudents, stats, summary, allTimetable, allAudits]) => {
       setDepartments(allDepts);
       setBatches(allBatches);
       setSubjects(allSubjects);
@@ -80,6 +103,8 @@ export default function AdminPortal() {
       setStudents(allStudents);
       setAnalytics(stats);
       setStudentsSummary(summary || {});
+      setTimetable(allTimetable || []);
+      setAuditLogs(allAudits || []);
       setLoading(false);
     })
     .catch((err) => {
@@ -91,7 +116,7 @@ export default function AdminPortal() {
 
   useEffect(() => {
     refreshDatabase();
-  }, [activeTab]);
+  }, [activeTab, portalView]);
 
   // Handle report filter recalculations dynamically
   useEffect(() => {
@@ -253,6 +278,91 @@ export default function AdminPortal() {
       fetch(`/api/teachers/${id}`, { method: "DELETE" })
         .then(() => refreshDatabase());
     }
+  };
+
+  // Timetable CRUD
+  const saveTimetableSlot = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    fetch("/api/timetable", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(timetableForm)
+    })
+    .then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to set timetable slot");
+      }
+      refreshDatabase();
+      setShowTimetableModal(false);
+      setTimetableForm({
+        id: "",
+        batchId: "",
+        subjectId: "",
+        teacherId: "",
+        dayOfWeek: "Monday",
+        startTime: "09:00",
+        endTime: "10:00",
+        classroom: ""
+      });
+      alert("Timetable slot successfully saved!");
+    })
+    .catch((err) => {
+      alert(err.message || "Failed to save timetable slot.");
+    })
+    .finally(() => {
+      setIsSubmitting(false);
+    });
+  };
+
+  const deleteTimetableSlot = (id: string) => {
+    if (!confirm("Are you sure you want to permanently delete this timetable slot?")) return;
+    fetch(`/api/timetable/${id}`, {
+      method: "DELETE"
+    })
+    .then(async (res) => {
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to delete timetable slot");
+      }
+      refreshDatabase();
+      alert("Timetable slot removed successfully.");
+    })
+    .catch((err) => {
+      alert(err.message);
+    });
+  };
+
+  const moveTimetableSlot = (slotId: string, newDay: string) => {
+    const slot = timetable.find(t => t.id === slotId);
+    if (!slot) return;
+    if (slot.dayOfWeek.toLowerCase() === newDay.toLowerCase()) return;
+
+    fetch("/api/timetable", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: slot.id,
+        batchId: slot.batchId,
+        subjectId: slot.subjectId,
+        teacherId: slot.teacherId,
+        dayOfWeek: newDay,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        classroom: slot.classroom || ""
+      })
+    })
+    .then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to reschedule timetable slot");
+      }
+      refreshDatabase();
+    })
+    .catch((err) => {
+      alert(err.message || "Failed to move timetable slot.");
+    });
   };
 
   // Students CRUD
@@ -458,141 +568,453 @@ export default function AdminPortal() {
   return (
     <>
       <div className="space-y-6 animate-fade-in pb-24 md:pb-0">
-      
-      {/* Admin Central Nav Tab Bar */}
-      <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-slate-900 rounded-xl border border-slate-700 shadow-sm flex items-center justify-center shrink-0">
-            <ShieldAlert className="w-5 h-5 text-amber-500" />
-          </div>
-          <div>
-            <h2 className="text-sm font-extrabold text-slate-800 font-display tracking-tight">University Management Portal</h2>
-            <p className="text-[10px] text-slate-500 font-bold font-sans">Role Authorized: Global Administrator Authority</p>
-          </div>
-        </div>
 
-        <div className="hidden md:flex flex-wrap gap-1 bg-slate-50 p-1 rounded-xl border border-slate-205">
-          <button
-            onClick={() => setActiveTab("DASHBOARD")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "DASHBOARD" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
-          >
-            Analytics
-          </button>
-          <button
-            onClick={() => setActiveTab("DEPARTMENTS")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "DEPARTMENTS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
-          >
-            Departments
-          </button>
-          <button
-            onClick={() => setActiveTab("TEACHERS")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "TEACHERS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
-          >
-            Teachers
-          </button>
-          <button
-            id="tab-admin-students"
-            onClick={() => setActiveTab("STUDENTS")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "STUDENTS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
-          >
-            Students
-          </button>
-          <button
-            onClick={() => setActiveTab("REPORTS")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "REPORTS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
-          >
-            Defaulter Reports
-          </button>
-        </div>
-      </div>
+      {/* Executive Portal Mode Switcher removed to focus solely on HOD Scholastic Operations */}
 
-      {/* Grid of total statistics */}
-      {activeTab === "DASHBOARD" && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Total Enrollments</span>
-              <strong className="text-2xl font-extrabold text-slate-800 font-mono tracking-tight block mt-1">{analytics.totals.totalStudents}</strong>
+      {/* 1. CAMPUS EXECUTIVE DASHBOARD (portalView === "DIRECTOR") */}
+      {portalView === "DIRECTOR" && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Executive Cockpit Header Card */}
+          <div className="bg-gradient-to-br from-slate-900 via-slate-850 to-amber-950 border border-amber-500/20 p-6 rounded-3xl shadow-xl text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative z-10">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[9px] font-mono font-bold uppercase tracking-wider">
+                    Executive clearance: Level A-1
+                  </span>
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-slate-400 text-[10px] font-mono">Live Central Database Synced</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-extrabold font-display tracking-tight text-white flex items-center gap-2">
+                  <Award className="w-6 h-6 text-amber-500" />
+                  National Forensic Sciences University Cockpit
+                </h2>
+                <p className="text-xs text-slate-300 max-w-2xl font-medium leading-relaxed font-sans">
+                  Academic Integrity and Attendance Monitoring Center for **Campus Director**, **Joint Director**, and Senior Administration. Delhi Campus.
+                </p>
+              </div>
+              <div className="shrink-0 flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-3 rounded-2xl backdrop-blur-md">
+                <div className="text-right">
+                  <span className="block text-[8px] font-bold text-amber-400 uppercase tracking-widest font-mono">Academic Session</span>
+                  <span className="text-xs font-bold text-white font-mono">2025-2026 (Active Quotas)</span>
+                </div>
+              </div>
             </div>
-            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Registered Teachers</span>
-              <strong className="text-2xl font-extrabold text-slate-800 font-mono tracking-tight block mt-1">{analytics.totals.totalTeachers}</strong>
-            </div>
-            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Active Classes Mapped</span>
-              <strong className="text-2xl font-extrabold text-slate-800 font-mono tracking-tight block mt-1">{analytics.totals.totalSubjects}</strong>
-            </div>
-            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Total Departments</span>
-              <strong className="text-2xl font-extrabold text-slate-800 font-mono tracking-tight block mt-1">{analytics.totals.totalDepartments}</strong>
-            </div>
-            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Today's Presence Ratio</span>
-              <strong className="text-2xl font-extrabold text-indigo-700 font-mono tracking-tight block mt-1">{analytics.totals.todayAttendanceRatio}%</strong>
+
+            {/* Strategic Alert Updates list */}
+            <div className="mt-5 pt-4 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-start gap-2 text-xs text-amber-200 bg-amber-500/5 border border-amber-500/10 p-2.5 rounded-xl">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="leading-relaxed">
+                  <strong>Scholastic Index:</strong> Student register indices computed at <strong className="font-mono">{analytics?.totals.todayAttendanceRatio}%</strong> are monitored. Immediate administrative alerts routed to lagging modules.
+                </p>
+              </div>
+              <div className="flex items-start gap-2 text-xs text-emerald-200 bg-emerald-500/5 border border-emerald-500/10 p-2.5 rounded-xl">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <p className="leading-relaxed">
+                  <strong>Policy Compliance:</strong> Physical student registers and substitution scheduler registries are compliant under HOD Central direction nodes.
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Dept averages bar */}
-            <div className="lg:col-span-7 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm min-h-[350px] flex flex-col justify-between">
+          {/* Director Executive Statistics */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
               <div>
-                <h3 className="font-extrabold text-slate-800 text-sm font-display tracking-tight">Department-wise Averages (%)</h3>
-                <p className="text-[11px] text-slate-550 mt-0.5">Rolling average attendance index computed by department.</p>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-mono">Campus Enrollments</span>
+                <strong className="text-3xl font-extrabold text-slate-800 font-mono tracking-tight block mt-2">{analytics?.totals.totalStudents}</strong>
+              </div>
+              <span className="text-[10px] text-emerald-600 font-bold block mt-3 font-sans">&ge;99% catalog alignment</span>
+            </div>
+            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-mono">Registered Faculty</span>
+                <strong className="text-3xl font-extrabold text-slate-800 font-mono tracking-tight block mt-2">{analytics?.totals.totalTeachers}</strong>
+              </div>
+              <span className="text-[10px] text-slate-400 font-bold block mt-3 font-sans">Full teaching cohort active</span>
+            </div>
+            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-mono">Subject Classrooms</span>
+                <strong className="text-3xl font-extrabold text-slate-800 font-mono tracking-tight block mt-2">{analytics?.totals.totalSubjects}</strong>
+              </div>
+              <span className="text-[10px] text-indigo-600 font-bold block mt-3 font-sans">Dynamic scheduling linked</span>
+            </div>
+            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-mono">Authorized Divisions</span>
+                <strong className="text-3xl font-extrabold text-slate-800 font-mono tracking-tight block mt-2">{analytics?.totals.totalDepartments}</strong>
+              </div>
+              <span className="text-[10px] text-slate-400 font-bold block mt-3 font-sans">NFSU Delhi Divisions</span>
+            </div>
+            <div className="bg-white border border-[#b48d2d]/20 rounded-2xl p-5 shadow-xs flex flex-col justify-between bg-amber-50/20">
+              <div>
+                <span className="text-[10px] font-bold text-[#b48d2d] uppercase tracking-wider block font-mono">Campus Presence Ratio</span>
+                <strong className="text-3xl font-extrabold text-[#b48d2d] font-mono tracking-tight block mt-2">{analytics?.totals.todayAttendanceRatio}%</strong>
+              </div>
+              <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden mt-3">
+                <div className="bg-amber-600 h-full" style={{ width: `${analytics?.totals.todayAttendanceRatio}%` }}></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Academic Averages Visual Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-7 bg-white border border-slate-100 rounded-3xl p-6 shadow-xs flex flex-col justify-between">
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-sm font-display tracking-tight flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4 text-[#b48d2d]" />
+                  Department Rolling Indices (Attendance %)
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-1">Comparative metrics across NFSU specialized academic divisions.</p>
               </div>
 
               <div className="flex-1 min-h-[220px] mt-4">
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={analytics.deptAverages} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <BarChart data={analytics?.deptAverages} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                     <XAxis dataKey="code" stroke="#94a3b8" fontSize={11} tickLine={false} />
                     <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
                     <Tooltip contentStyle={{ backgroundColor: "#0f172a", borderRadius: "10px", color: "white" }} />
-                    <Bar dataKey="percentage" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={40} name="Attendance Avg %" />
+                    <Bar dataKey="percentage" fill="#b48d2d" radius={[6, 6, 0, 0]} barSize={40} name="Attendance Avg %" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            {/* Semester-wise analytics */}
-            <div className="lg:col-span-5 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm min-h-[350px] flex flex-col justify-between">
+            <div className="lg:col-span-5 bg-white border border-slate-100 rounded-3xl p-6 shadow-xs flex flex-col justify-between">
               <div>
-                <h3 className="font-extrabold text-slate-800 text-sm font-display tracking-tight">Active Semester averages (%)</h3>
-                <p className="text-[11px] text-slate-550 mt-0.5">Average overall attendance calculated dynamically over semesters.</p>
+                <h3 className="font-extrabold text-slate-800 text-sm font-display tracking-tight flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-rose-500" />
+                  Global Semester Performance Indexes
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-1">Average presence ratio charted chronologically by active semesters.</p>
               </div>
 
               <div className="flex-1 min-h-[220px] mt-4">
                 <ResponsiveContainer width="100%" height={220}>
-                  <AreaChart data={analytics.semesterData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <AreaChart data={analytics?.semesterData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="semester" stroke="#94a3b8" fontSize={11} tickLine={false} name="Semester" />
                     <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
                     <Tooltip contentStyle={{ backgroundColor: "#0f172a", borderRadius: "10px", color: "white" }} />
-                    <Area type="monotone" dataKey="percentage" stroke="#fda4af" fill="#fecdd3" strokeWidth={3} name="Average %" />
+                    <Area type="monotone" dataKey="percentage" stroke="#f59e0b" fill="#fef3c7" strokeWidth={3} name="Average %" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
           </div>
 
-          {/* Defaulter ratios and safe indexes info */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-2xl">
-              <strong className="text-[11px] uppercase tracking-widest text-emerald-800 font-sans font-bold">Safe Tier Roster (&ge;80%)</strong>
-              <p className="text-3xl font-extrabold text-emerald-950 font-mono mt-2">{analytics.defaulters.safeCount} students</p>
-              <p className="text-xs text-emerald-800 mt-1">These student profiles satisfy minimum academic threshold criteria.</p>
+          {/* Department Profiles (HOD Monitoring Dashboard) */}
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xs space-y-4">
+            <div>
+              <h3 className="font-extrabold text-slate-800 text-sm font-display tracking-tight flex items-center gap-1.5">
+                <Layers className="w-5 h-5 text-amber-600" />
+                Departmental Efficiency Status & Leadership Audit
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">High-level operational audits for each registered Division Head (HOD).</p>
             </div>
-            <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl">
-              <strong className="text-[11px] uppercase tracking-widest text-amber-805 font-sans font-bold">Warning Tier Roster (65%-80%)</strong>
-              <p className="text-3xl font-extrabold text-amber-950 font-mono mt-2">{analytics.defaulters.warningCount} students</p>
-              <p className="text-xs text-amber-800 mt-1">Flagged automatically. Caution warning banners populated on dashboards.</p>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-150 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                    <th className="pb-3 pt-1">Division</th>
+                    <th className="pb-3 pt-1">Code</th>
+                    <th className="pb-3 pt-1">Classes/Timetable</th>
+                    <th className="pb-3 pt-1">Average Attendance</th>
+                    <th className="pb-3 pt-1">Campus Status</th>
+                    <th className="pb-3 pt-1">Audit KPI Rating</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {departments.map((dept) => {
+                    const deptBatches = batches.filter(b => b.departmentId === dept.id);
+                    const avgData = analytics?.deptAverages.find(d => d.code === dept.code || dept.name.toLowerCase().includes(d.code.toLowerCase()));
+                    const percentage = avgData ? avgData.percentage : 82;
+                    const isOptimal = percentage >= 75;
+
+                    return (
+                      <tr key={dept.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3 font-semibold text-slate-800">{dept.name}</td>
+                        <td className="py-3 font-mono font-bold text-slate-600">{dept.code}</td>
+                        <td className="py-3 font-medium text-slate-500">{deptBatches.length} active classes</td>
+                        <td className="py-3 font-mono font-bold text-slate-700">{percentage}%</td>
+                        <td className="py-3">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 font-semibold">
+                            Operational
+                          </span>
+                        </td>
+                        <td className="py-3">
+                          {isOptimal ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 inline-flex items-center gap-1">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Optimal (Satisfactory)
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100 inline-flex items-center gap-1">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span> Risk Status (Warning)
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-            <div className="p-6 bg-rose-50 border border-rose-100 rounded-2xl">
-              <strong className="text-[11px] uppercase tracking-widest text-rose-805 font-sans font-bold">Critical Defaulter Tier (&lt;60%)</strong>
-              <p className="text-3xl font-extrabold text-rose-950 font-mono mt-2">{analytics.defaulters.criticalCount} students</p>
-              <p className="text-xs text-rose-800 mt-1">Mandatorily barred. Require immediate academic counseling meeting.</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Defaulter Alert Lists Summary */}
+            <div className="lg:col-span-4 bg-white border border-slate-100 rounded-3xl p-6 shadow-xs space-y-4">
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-sm font-display tracking-tight flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5 text-rose-500" />
+                  Campus Defaulter Risk Cohorts
+                </h3>
+                <p className="text-xs text-slate-500">Breakdown of student files flagged automatically across the physical rosters.</p>
+              </div>
+
+              <div className="space-y-3.5">
+                <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-rose-950 uppercase tracking-wide font-mono">Critical Cohort (&lt;60%)</h4>
+                    <p className="text-[11px] text-rose-700 mt-0.5 font-medium">Barred from standard end semester examinations.</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-extrabold text-rose-950 font-mono block">{analytics?.defaulters.criticalCount}</span>
+                    <span className="text-[9px] font-mono font-bold text-rose-600">Counseling Req.</span>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wide font-mono">Cautionary Alert (65%-80%)</h4>
+                    <p className="text-[11px] text-amber-700 mt-0.5 font-medium font-sans">Official warning letters dispatched by HODs.</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-extrabold text-amber-950 font-mono block">{analytics?.defaulters.warningCount}</span>
+                    <span className="text-[9px] font-mono font-bold text-amber-600">Active Notice</span>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-emerald-950 uppercase tracking-wide font-mono">Academic Safe Zone (&ge;80%)</h4>
+                    <p className="text-[11px] text-emerald-700 mt-0.5 font-medium font-sans">Satisfactory compliance metrics registered.</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-extrabold text-emerald-950 font-mono block">{analytics?.defaulters.safeCount}</span>
+                    <span className="text-[9px] font-mono font-bold text-emerald-600">Compliant</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Attendance Change Audit Log */}
+            <div className="lg:col-span-8 bg-white border border-slate-100 rounded-3xl p-6 shadow-xs flex flex-col justify-between">
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-sm font-display tracking-tight flex items-center gap-1.5">
+                  <ClipboardList className="w-5 h-5 text-[#b48d2d]" />
+                  Executive Audit Trail: Attendance Corrections
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">Real-time surveillance audit feed showing corrections and modifications logged by Faculty & HODs.</p>
+              </div>
+
+              <div className="flex-1 overflow-y-auto max-h-[300px] mt-4 pr-1 space-y-3 scrollbar-thin">
+                {auditLogs.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center p-6 text-center text-slate-400">
+                    <ClipboardList className="w-10 h-10 stroke-1 text-slate-300 mb-2" />
+                    <p className="text-xs">No active attendance modifications logged this semester.</p>
+                  </div>
+                ) : (
+                  auditLogs.slice(0, 10).map((log) => (
+                    <div key={log.id} className="p-3 bg-slate-50 border border-slate-150 rounded-xl space-y-1.5 hover:border-amber-200 transition-all text-xs">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-[#b48d2d] font-mono">{log.enrollmentNumber}</span>
+                        <span className="text-slate-400 font-mono">{log.date || log.modifiedDate?.split('T')[0]}</span>
+                      </div>
+                      
+                      <div className="text-slate-800 font-semibold leading-relaxed">
+                        [{log.subjectName}] {log.studentName} attendance corrected of class-slot by <strong className="text-slate-900">{log.modifiedBy || 'Faculty'}</strong>.
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 items-center text-[10px] text-slate-500">
+                        <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-100 rounded font-mono font-bold line-through">
+                          {log.previousStatus}
+                        </span>
+                        <span>&rarr;</span>
+                        <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded font-mono font-bold">
+                          {log.newStatus}
+                        </span>
+                        {log.remarks && (
+                          <span className="text-slate-400 italic bg-slate-100 px-1.5 py-0.5 rounded truncate max-w-xs">
+                            "{log.remarks}"
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* 2. HEAD OF DEPARTMENT PORTAL (portalView === "HOD") */}
+      {portalView === "HOD" && (
+        <>
+          {/* HOD Central Nav Tab Bar */}
+          <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-slate-900 rounded-xl border border-slate-700 shadow-sm flex items-center justify-center shrink-0">
+                <ShieldAlert className="w-5 h-5 text-indigo-400" />
+              </div>
+              <div>
+                <h2 className="text-sm font-extrabold text-slate-800 font-display tracking-tight">HOD Management Portal</h2>
+                <p className="text-[10px] text-slate-500 font-bold font-sans">Role Authorized: Head of Department Operations</p>
+              </div>
+            </div>
+
+            <div className="hidden md:flex flex-wrap gap-1 bg-slate-50 p-1 rounded-xl border border-slate-205">
+              <button
+                type="button"
+                onClick={() => setActiveTab("DASHBOARD")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "DASHBOARD" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
+              >
+                HOD Analytics
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("DEPARTMENTS")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "DEPARTMENTS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
+              >
+                Departments
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("TEACHERS")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "TEACHERS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
+              >
+                Faculty Officers
+              </button>
+              <button
+                type="button"
+                id="tab-admin-students"
+                onClick={() => setActiveTab("STUDENTS")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "STUDENTS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
+              >
+                Student Registrars
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("REPORTS")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "REPORTS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
+              >
+                Defaulter Audits
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("TIMETABLE")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold select-none transition-all ${activeTab === "TIMETABLE" ? "bg-slate-900 text-white shadow-xs" : "text-slate-700 hover:text-slate-950"}`}
+              >
+                Timetable Schedulers
+              </button>
+            </div>
+          </div>
+
+          {/* Grid of total statistics */}
+          {activeTab === "DASHBOARD" && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Total Enrollments</span>
+                  <strong className="text-2xl font-extrabold text-slate-800 font-mono tracking-tight block mt-1">{analytics?.totals.totalStudents}</strong>
+                </div>
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Registered Teachers</span>
+                  <strong className="text-2xl font-extrabold text-slate-800 font-mono tracking-tight block mt-1">{analytics?.totals.totalTeachers}</strong>
+                </div>
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Active Classes Mapped</span>
+                  <strong className="text-2xl font-extrabold text-slate-800 font-mono tracking-tight block mt-1">{analytics?.totals.totalSubjects}</strong>
+                </div>
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Total Departments</span>
+                  <strong className="text-2xl font-extrabold text-slate-800 font-mono tracking-tight block mt-1">{analytics?.totals.totalDepartments}</strong>
+                </div>
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block font-sans">Today's Presence Ratio</span>
+                  <strong className="text-2xl font-extrabold text-indigo-700 font-mono tracking-tight block mt-1">{analytics?.totals.todayAttendanceRatio}%</strong>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Dept averages bar */}
+                <div className="lg:col-span-7 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm min-h-[350px] flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-extrabold text-slate-800 text-sm font-display tracking-tight">Department-wise Averages (%)</h3>
+                    <p className="text-[11px] text-slate-550 mt-0.5">Rolling average attendance index computed by department.</p>
+                  </div>
+
+                  <div className="flex-1 min-h-[220px] mt-4">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={analytics?.deptAverages} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                        <XAxis dataKey="code" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                        <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                        <Tooltip contentStyle={{ backgroundColor: "#0f172a", borderRadius: "10px", color: "white" }} />
+                        <Bar dataKey="percentage" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={40} name="Attendance Avg %" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Semester-wise analytics */}
+                <div className="lg:col-span-5 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm min-h-[350px] flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-extrabold text-slate-800 text-sm font-display tracking-tight">Active Semester averages (%)</h3>
+                    <p className="text-[11px] text-slate-550 mt-0.5">Average overall attendance calculated dynamically over semesters.</p>
+                  </div>
+
+                  <div className="flex-1 min-h-[220px] mt-4">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <AreaChart data={analytics?.semesterData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="semester" stroke="#94a3b8" fontSize={11} tickLine={false} name="Semester" />
+                        <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                        <Tooltip contentStyle={{ backgroundColor: "#0f172a", borderRadius: "10px", color: "white" }} />
+                        <Area type="monotone" dataKey="percentage" stroke="#fda4af" fill="#fecdd3" strokeWidth={3} name="Average %" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+
+              {/* Defaulter ratios and safe indexes info */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-2xl">
+                  <strong className="text-[11px] uppercase tracking-widest text-emerald-800 font-sans font-bold">Safe Tier Roster (&ge;80%)</strong>
+                  <p className="text-3xl font-extrabold text-emerald-950 font-mono mt-2">{analytics?.defaulters.safeCount} students</p>
+                  <p className="text-xs text-emerald-800 mt-1">These student profiles satisfy minimum academic threshold criteria.</p>
+                </div>
+                <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl">
+                  <strong className="text-[11px] uppercase tracking-widest text-amber-805 font-sans font-bold">Warning Tier Roster (65%-80%)</strong>
+                  <p className="text-3xl font-extrabold text-amber-950 font-mono mt-2">{analytics?.defaulters.warningCount} students</p>
+                  <p className="text-xs text-amber-800 mt-1">Flagged automatically. Caution warning banners populated on dashboards.</p>
+                </div>
+                <div className="p-6 bg-rose-50 border border-rose-100 rounded-2xl">
+                  <strong className="text-[11px] uppercase tracking-widest text-rose-805 font-sans font-bold">Critical Defaulter Tier (&lt;60%)</strong>
+                  <p className="text-3xl font-extrabold text-rose-950 font-mono mt-2">{analytics?.defaulters.criticalCount} students</p>
+                  <p className="text-xs text-rose-800 mt-1">Mandatorily barred. Require immediate academic counseling meeting.</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* 2. DEPARTMENTS CRUD VIEW */}
@@ -1541,6 +1963,342 @@ export default function AdminPortal() {
         </div>
       )}
 
+      {/* 6. WEEKLY TIMETABLE SCHEDULING CONSOLE */}
+      {activeTab === "TIMETABLE" && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 className="font-extrabold text-slate-800 text-base font-display tracking-tight flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-amber-500" />
+                Weekly Timetable & Lecture Scheduling Console
+              </h3>
+              <p className="text-xs text-slate-600 mt-0.5">Define master school schedules, allocate subjects, and associate faculties with real-time collision testing.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div>
+                <select
+                  value={timetableFilterBatch}
+                  onChange={(e) => setTimetableFilterBatch(e.target.value)}
+                  className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-hidden"
+                >
+                  <option value="ALL">Show All Batches</option>
+                  {batches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={() => {
+                  setTimetableForm({
+                    id: "",
+                    batchId: batches[0]?.id || "",
+                    subjectId: subjects[0]?.id || "",
+                    teacherId: teachers[0]?.id || "",
+                    dayOfWeek: "Monday",
+                    startTime: "09:00",
+                    endTime: "10:00",
+                    classroom: ""
+                  });
+                  setShowTimetableModal(true);
+                }}
+                className="px-4 py-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-white font-semibold text-xs rounded-lg flex items-center gap-1.5 select-none shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                Schedule Lecture
+              </button>
+            </div>
+          </div>
+
+          {/* Weekly Columns Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((day) => {
+              const slotsForDay = timetable.filter(t => {
+                const matchesDay = t.dayOfWeek.toLowerCase() === day.toLowerCase();
+                const matchesBatch = timetableFilterBatch === "ALL" || t.batchId === timetableFilterBatch;
+                return matchesDay && matchesBatch;
+              });
+
+              const isDragOver = dragOverDay === day;
+
+              return (
+                <div 
+                  key={day} 
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (dragOverDay !== day) setDragOverDay(day);
+                  }}
+                  onDragLeave={() => {
+                    setDragOverDay(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const slotId = e.dataTransfer.getData("text/plain") || draggedSlotId;
+                    if (slotId) {
+                      moveTimetableSlot(slotId, day);
+                    }
+                    setDragOverDay(null);
+                    setDraggedSlotId(null);
+                  }}
+                  className={`border rounded-xl p-3 flex flex-col min-h-[350px] transition-all duration-200 ${
+                    isDragOver 
+                      ? "bg-amber-50/50 border-amber-400 border-dashed shadow-md ring-2 ring-amber-400/20 scale-[1.01] cursor-copy" 
+                      : "bg-slate-50 border-slate-200/60"
+                  }`}
+                >
+                  <div className="pb-2 border-b border-slate-200 mb-3 flex items-center justify-between">
+                    <span className="font-bold text-slate-800 text-xs tracking-tight">{day}</span>
+                    <span className="px-1.5 py-0.5 bg-slate-200/60 text-slate-600 rounded-md text-[9px] font-mono font-bold">
+                      {slotsForDay.length} List{slotsForDay.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 flex-1 overflow-y-auto">
+                    {slotsForDay.length === 0 ? (
+                      <div className="h-full flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg p-4 bg-white/40">
+                        <p className="text-[10px] text-slate-400 font-medium text-center italic">No lectures</p>
+                      </div>
+                    ) : (
+                      slotsForDay.map((slot) => {
+                        const isDragged = draggedSlotId === slot.id;
+                        return (
+                          <div 
+                            key={slot.id} 
+                            draggable={true}
+                            onDragStart={(e) => {
+                              setDraggedSlotId(slot.id);
+                              e.dataTransfer.setData("text/plain", slot.id);
+                              e.dataTransfer.effectAllowed = "move";
+                            }}
+                            onDragEnd={() => {
+                              setDraggedSlotId(null);
+                            }}
+                            onClick={() => {
+                              setTimetableForm({
+                                id: slot.id,
+                                batchId: slot.batchId || "",
+                                subjectId: slot.subjectId || "",
+                                teacherId: slot.teacherId || "",
+                                dayOfWeek: slot.dayOfWeek || "Monday",
+                                startTime: slot.startTime || "09:00",
+                                endTime: slot.endTime || "10:00",
+                                classroom: slot.classroom || ""
+                              });
+                              setShowTimetableModal(true);
+                            }}
+                            className={`bg-white border rounded-lg p-3 shadow-xs relative group transition-all cursor-grab active:cursor-grabbing hover:shadow-sm ${
+                              isDragged 
+                                ? "opacity-30 border-dashed border-slate-300 scale-95" 
+                                : "border-slate-100 hover:border-amber-400/55 hover:bg-slate-50/50"
+                            }`}
+                            title="Drag to reschedule or Click to edit slot details"
+                          >
+                            <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setTimetableForm({
+                                    id: slot.id,
+                                    batchId: slot.batchId || "",
+                                    subjectId: slot.subjectId || "",
+                                    teacherId: slot.teacherId || "",
+                                    dayOfWeek: slot.dayOfWeek || "Monday",
+                                    startTime: slot.startTime || "09:00",
+                                    endTime: slot.endTime || "10:00",
+                                    classroom: slot.classroom || ""
+                                  });
+                                  setShowTimetableModal(true);
+                                }}
+                                className="text-slate-400 hover:text-amber-500 transition-colors p-0.5 rounded"
+                                title="Edit slot details"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteTimetableSlot(slot.id);
+                                }}
+                                className="text-slate-400 hover:text-rose-500 transition-colors p-0.5 rounded"
+                                title="Delete slot"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            
+                            <div className="space-y-1.5 pr-4 select-none">
+                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[9px] font-mono font-bold block w-fit">
+                                {slot.startTime} - {slot.endTime}
+                              </span>
+                              <h4 className="font-extrabold text-slate-800 text-xs leading-tight tracking-tight">
+                                {slot.subjectCode}: {slot.subjectName}
+                              </h4>
+                              <div className="text-[10px] text-slate-500 space-y-0.5">
+                                <p className="font-medium truncate">🧑‍🏫 {slot.teacherName}</p>
+                                {slot.classroom && (
+                                  <p className="font-mono bg-slate-50/80 px-1 py-0.5 rounded border border-slate-100 text-[9px] w-fit">
+                                    📍 {slot.classroom}
+                                  </p>
+                                )}
+                                {timetableFilterBatch === "ALL" && (
+                                  <p className="font-semibold text-amber-600 text-[8px] uppercase mt-1">
+                                    🎓 {slot.batchName}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* New Schedule Modal Overlay */}
+          {showTimetableModal && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl w-full max-w-md p-6 overflow-hidden animate-slide-up">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+                  <h4 className="text-sm font-extrabold text-slate-900 font-display tracking-tight flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-amber-500" />
+                    {timetableForm.id ? "Modify Academic Timetable Slot" : "Configure Academic Scheduling Slot"}
+                  </h4>
+                  <button
+                    onClick={() => setShowTimetableModal(false)}
+                    className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1 rounded-lg"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form onSubmit={saveTimetableSlot} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Target Student Batch *</label>
+                    <select
+                      required
+                      value={timetableForm.batchId}
+                      onChange={(e) => setTimetableForm({ ...timetableForm, batchId: e.target.value })}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-hidden"
+                    >
+                      <option value="">-- Select Target Batch --</option>
+                      {batches.map(b => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Assigned Subject / Lecture *</label>
+                    <select
+                      required
+                      value={timetableForm.subjectId}
+                      onChange={(e) => setTimetableForm({ ...timetableForm, subjectId: e.target.value })}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-hidden"
+                    >
+                      <option value="">-- Select Loaded Subject --</option>
+                      {subjects.map(s => (
+                        <option key={s.id} value={s.id}>[{s.code}] {s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Primary Lecturer / Faculty *</label>
+                    <select
+                      required
+                      value={timetableForm.teacherId}
+                      onChange={(e) => setTimetableForm({ ...timetableForm, teacherId: e.target.value })}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-hidden"
+                    >
+                      <option value="">-- Select Faculty Member --</option>
+                      {teachers.map(t => (
+                        <option key={t.id} value={t.id}>{t.fullName}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Day of the Week *</label>
+                      <select
+                        required
+                        value={timetableForm.dayOfWeek}
+                        onChange={(e) => setTimetableForm({ ...timetableForm, dayOfWeek: e.target.value })}
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-hidden"
+                      >
+                        {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(day => (
+                          <option key={day} value={day}>{day}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Classroom / Lab</label>
+                      <input
+                        type="text"
+                        value={timetableForm.classroom}
+                        onChange={(e) => setTimetableForm({ ...timetableForm, classroom: e.target.value })}
+                        placeholder="e.g., Room 302, Lab 4"
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Start Time *</label>
+                      <select
+                        required
+                        value={timetableForm.startTime}
+                        onChange={(e) => setTimetableForm({ ...timetableForm, startTime: e.target.value })}
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-hidden"
+                      >
+                        {["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"].map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">End Time *</label>
+                      <select
+                        required
+                        value={timetableForm.endTime}
+                        onChange={(e) => setTimetableForm({ ...timetableForm, endTime: e.target.value })}
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:outline-hidden"
+                      >
+                        {["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"].map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-5">
+                    <button
+                      type="button"
+                      onClick={() => setShowTimetableModal(false)}
+                      className="px-3 py-1.5 border border-slate-200 text-slate-500 hover:bg-slate-50 text-xs font-semibold rounded-lg"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="px-4 py-1.5 bg-slate-900 text-white font-semibold text-xs rounded-lg hover:bg-slate-800 disabled:opacity-50"
+                    >
+                      {isSubmitting ? "Saving..." : (timetableForm.id ? "Update Slot" : "Save Lecture")}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       </div>
 
       {/* Mobile Sticky bottom navigation bar */}
@@ -1600,6 +2358,17 @@ export default function AdminPortal() {
         >
           <ClipboardList className="w-4 h-4 mb-0.5" />
           <span className="text-[8px] tracking-tight font-sans">Reports</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("TIMETABLE")}
+          className={`flex flex-col items-center justify-center flex-1 h-14 rounded-xl transition-all duration-200 ${
+            activeTab === "TIMETABLE"
+              ? "text-amber-600 font-bold scale-105"
+              : "text-slate-400 font-medium hover:text-slate-600"
+          }`}
+        >
+          <Calendar className="w-4 h-4 mb-0.5" />
+          <span className="text-[8px] tracking-tight font-sans">Timetable</span>
         </button>
       </div>
     </>

@@ -21,7 +21,7 @@ export default function TeacherPortal({
   isMobileView = false
 }: TeacherPortalProps) {
   // Navigation states inside Teacher Dashboard
-  const [activeTab, setActiveTab] = useState<"DASHBOARD" | "MARK_ATTENDANCE" | "EDIT_ATTENDANCE" | "AUDIT_TRAIL" | "DEFAULTERS" | "MONTHLY_REPORT" | "ANNOUNCEMENTS">("DASHBOARD");
+  const [activeTab, setActiveTab] = useState<"DASHBOARD" | "MARK_ATTENDANCE" | "EDIT_ATTENDANCE" | "AUDIT_TRAIL" | "DEFAULTERS" | "MONTHLY_REPORT" | "ANNOUNCEMENTS" | "TIMETABLE">("DASHBOARD");
 
   // Mobile-specific tabs: "MOBILE_OVERVIEW" | "MOBILE_MARK" | "MOBILE_CORRECT" | "MOBILE_AUDIT"
   const [mobileTab, setMobileTab] = useState<"OVERVIEW" | "MARK" | "CORRECT" | "AUDIT" | "MONTHLY">("OVERVIEW");
@@ -33,6 +33,7 @@ export default function TeacherPortal({
   const [batches, setBatches] = useState<Batch[]>([]);
   const [analytics, setAnalytics] = useState<TeacherAnalyticsResponse | null>(null);
   const [auditLogs, setAuditLogs] = useState<AttendanceAudit[]>([]);
+  const [timetable, setTimetable] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorObj, setErrorObj] = useState<string | null>(null);
 
@@ -160,6 +161,20 @@ export default function TeacherPortal({
         })
         .catch(err => {
           console.error("Failed to refresh announcements on tab activation:", err);
+        });
+    }
+  }, [activeTab, teacherUser.id]);
+
+  // Load latest teacher timetable immediately on tab click
+  useEffect(() => {
+    if (activeTab === "TIMETABLE") {
+      fetch(`/api/timetable?teacherId=${teacherUser.id}`)
+        .then(res => res.ok ? res.json() : [])
+        .then(data => {
+          setTimetable(data);
+        })
+        .catch(err => {
+          console.error("Failed to query teacher schedule:", err);
         });
     }
   }, [activeTab, teacherUser.id]);
@@ -292,7 +307,7 @@ export default function TeacherPortal({
     setStatusMessage("");
     if (!selectedBatchId) return;
 
-    fetch("/api/students")
+    fetch(`/api/students?batchId=${selectedBatchId}`)
       .then(res => res.ok ? res.json() : Promise.reject(res))
       .then((allStudents: Student[]) => {
         const batchStudents = allStudents.filter(s => s.batchId === selectedBatchId).sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true }));
@@ -310,7 +325,7 @@ export default function TeacherPortal({
   // Switch batch during attendance tracking updates list immediately
   useEffect(() => {
     if ((activeTab === "MARK_ATTENDANCE" || mobileTab === "MARK") && selectedBatchId) {
-      fetch("/api/students")
+      fetch(`/api/students?batchId=${selectedBatchId}`)
         .then(res => res.ok ? res.json() : Promise.reject(res))
         .then((allStudents: Student[]) => {
           const batchStudents = allStudents.filter(s => s.batchId === selectedBatchId).sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true }));
@@ -401,7 +416,7 @@ export default function TeacherPortal({
     fetch(`/api/attendance/query?subjectId=${editSubjectId}&batchId=${editBatchId}&date=${editDate}`)
       .then(res => res.ok ? res.json() : Promise.reject(res))
       .then((records: AttendanceRecord[]) => {
-        fetch("/api/students")
+        fetch(`/api/students?batchId=${editBatchId}`)
           .then(res2 => res2.ok ? res2.json() : Promise.reject(res2))
           .then((allStudents: Student[]) => {
             const populated = records.map(rec => {
@@ -465,7 +480,7 @@ export default function TeacherPortal({
     
     Promise.all([
       fetch(`/api/attendance/query?subjectId=${reportSubjectId}&batchId=${reportBatchId}`).then(res => res.ok ? res.json() : Promise.reject(res)),
-      fetch("/api/students").then(res => res.ok ? res.json() : Promise.reject(res))
+      fetch(`/api/students?batchId=${reportBatchId}`).then(res => res.ok ? res.json() : Promise.reject(res))
     ]).then(([records, allStudents]) => {
       const batchStudents = allStudents.filter((s: Student) => s.batchId === reportBatchId).sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true }));
       const filteredRecords = records.filter((r: AttendanceRecord) => r.date.startsWith(reportMonth));
@@ -715,7 +730,7 @@ export default function TeacherPortal({
                       setMobileTab("MARK");
                       setMobileMarkStep(1);
                       setStatusMessage("");
-                      fetch("/api/students")
+                      fetch(`/api/students?batchId=${selectedBatchId}`)
                         .then(res => res.ok ? res.json() : Promise.reject(res))
                         .then((allStudents: Student[]) => {
                           const batchStudents = allStudents.filter(s => s.batchId === selectedBatchId).sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true }));
@@ -1615,7 +1630,7 @@ export default function TeacherPortal({
               setMobileTab("MARK");
               setMobileMarkStep(1);
               setStatusMessage("");
-              fetch("/api/students")
+              fetch(`/api/students?batchId=${selectedBatchId}`)
                 .then(res => res.ok ? res.json() : Promise.reject(res))
                 .then((allStudents: Student[]) => {
                   const batchStudents = allStudents.filter(s => s.batchId === selectedBatchId).sort((a, b) => (a.rollNumber || "").localeCompare(b.rollNumber || "", undefined, { numeric: true }));
@@ -1780,6 +1795,12 @@ export default function TeacherPortal({
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeTab === "ANNOUNCEMENTS" ? "bg-slate-900 text-white shadow-xs" : "text-slate-600 hover:text-slate-950"}`}
             >
               Announcements
+            </button>
+            <button
+              onClick={() => setActiveTab("TIMETABLE")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeTab === "TIMETABLE" ? "bg-slate-900 text-white shadow-xs" : "text-slate-600 hover:text-slate-950"}`}
+            >
+              My Timetable
             </button>
         </div>
       </div>
@@ -2905,6 +2926,72 @@ export default function TeacherPortal({
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* 6. WEEKLY TIMETABLE VIEW */}
+      {activeTab === "TIMETABLE" && (
+        <div className="space-y-6 animate-fade-in mb-8">
+          <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
+            <h3 className="font-extrabold text-slate-800 text-base font-display tracking-tight flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-indigo-600" />
+              Instructional Faculty Lecture Schedule
+            </h3>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Weekly outline of assigned subject blocks and target student directories registered under your account.
+            </p>
+          </div>
+
+          {/* Weekday Columns Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((day) => {
+              const slotsForDay = timetable.filter(
+                t => t.dayOfWeek.toLowerCase() === day.toLowerCase()
+              );
+
+              return (
+                <div key={day} className="bg-slate-50 border border-slate-200/60 rounded-xl p-3 flex flex-col min-h-[300px]">
+                  <div className="pb-1.5 border-b border-slate-200 mb-3 flex items-center justify-between">
+                    <span className="font-bold text-slate-800 text-xs tracking-tight">{day}</span>
+                    <span className="px-1.5 py-0.5 bg-slate-200/60 text-slate-600 rounded-md text-[9px] font-mono font-bold">
+                      {slotsForDay.length}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 flex-1">
+                    {slotsForDay.length === 0 ? (
+                      <div className="h-full flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg p-4 bg-white/40">
+                        <span className="text-[10px] text-slate-400 font-medium italic text-center">No Lectures</span>
+                      </div>
+                    ) : (
+                      slotsForDay.map((slot) => (
+                        <div key={slot.id} className="bg-white border border-slate-100 rounded-lg p-2.5 shadow-xs relative hover:border-indigo-400/50 transition-all">
+                          <div className="space-y-1">
+                            <span className="px-1 py-0.5 bg-indigo-50 text-indigo-650 rounded text-[9px] font-mono font-bold block w-fit">
+                              {slot.startTime} - {slot.endTime}
+                            </span>
+                            <h4 className="font-extrabold text-slate-800 text-[11px] leading-tight tracking-tight">
+                              {slot.subjectCode}: {slot.subjectName}
+                            </h4>
+                            <div className="text-[10px] text-slate-500 space-y-0.5 pt-1">
+                              <p className="font-semibold text-indigo-600 text-[9px] uppercase">
+                                🎓 {slot.batchName}
+                              </p>
+                              {slot.classroom && (
+                                <p className="font-mono bg-slate-50 border border-slate-100 px-1 py-0.5 rounded text-[8px] w-fit">
+                                  📍 Room {slot.classroom}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

@@ -105,6 +105,19 @@ CREATE TABLE IF NOT EXISTS substitute_assignments (
     UNIQUE(teacher_id, subject_id, is_active)
 );
 
+CREATE TABLE IF NOT EXISTS timetable (
+    id VARCHAR(255) PRIMARY KEY,
+    batch_id VARCHAR(255) NOT NULL REFERENCES batches(id) ON DELETE CASCADE,
+    subject_id VARCHAR(255) NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    teacher_id VARCHAR(255) NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+    day_of_week VARCHAR(50) NOT NULL,
+    start_time VARCHAR(50) NOT NULL,
+    end_time VARCHAR(50) NOT NULL,
+    classroom VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(batch_id, day_of_week, start_time)
+);
+
 -- Enable Row Level Security (RLS) on all public tables to secure PostgREST/Supabase exposure
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE departments ENABLE ROW LEVEL SECURITY;
@@ -117,3 +130,4 @@ ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE substitute_assignments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE timetable ENABLE ROW LEVEL SECURITY;

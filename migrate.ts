@@ -41,6 +41,28 @@ async function runMigration() {
       );
     `);
 
+    // Create timetable table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS timetable (
+          id VARCHAR(255) PRIMARY KEY,
+          batch_id VARCHAR(255) NOT NULL REFERENCES batches(id) ON DELETE CASCADE,
+          subject_id VARCHAR(255) NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+          teacher_id VARCHAR(255) NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+          day_of_week VARCHAR(50) NOT NULL,
+          start_time VARCHAR(50) NOT NULL,
+          end_time VARCHAR(50) NOT NULL,
+          classroom VARCHAR(100),
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(batch_id, day_of_week, start_time)
+      );
+    `);
+
+    try {
+      await pool.query("ALTER TABLE timetable ENABLE ROW LEVEL SECURITY;");
+    } catch (rlsErr) {
+      // safe to ignore
+    }
+
     // Add refresh_tokens table for secure token handling
     await pool.query(`
       CREATE TABLE IF NOT EXISTS refresh_tokens (
